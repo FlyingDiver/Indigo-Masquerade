@@ -5,14 +5,31 @@
         <ConfigUI>
             <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
-			<Field type="menu" id="baseDevice" filter="">
+			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
+
+			<Field type="menu" id="deviceClass" defaultValue="Plugin">
+				<Label>Device Class:</Label>
+                <List>
+                    <Option value="indigo.insteon">Insteon</Option>
+                    <Option value="plugin">Plugin</Option>
+                    <Option value="indigo.zwave">ZWave</Option>
+                    <Option value="indigo.x10">X10</Option>
+                </List>
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+            <Field type="menu" id="devicePlugin" visibleBindingId="deviceClass" visibleBindingValue="plugin">
+                <Label>Select Plugin:</Label>
+                <List method="getPluginList" dynamicReload="true" class="self" filter="" />
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>
+			<Field type="menu" id="baseDevice">
 				<Label>Device to Masquerade:</Label>
-				<List method="getAllDevices" class="self" filter=""/>
+				<List method="getClassDevices" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
 			</Field>
 			<Field type="menu" id="masqState">
 				<Label>State to Masquerade:</Label>
-                <List class="self" filter="" method="getStateList" dynamicReload="true"/>
+                <List method="getStateList" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
 			</Field>
             <Field id="matchString" type="textfield">

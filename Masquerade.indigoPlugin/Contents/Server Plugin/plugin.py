@@ -4,6 +4,8 @@
 ## Python to interface with MyQ garage doors.
 ## based on https://github.com/Einstein42/myq-garage
 
+import os
+import plistlib
 import sys
 import time
 import logging
@@ -165,17 +167,56 @@ class Plugin(indigo.PluginBase):
                     self.logger.debug(u"%s, a masqueraded device, has been updated: %s (%s)." % (oldDevice.name, myDevice.name, str(match)))
                     myDevice.updateStateOnServer(key='onOffState', value = match)
 
-    ########################################
+    ########################################################################
+    # This method is called to generate a list of plugin identifiers / names
+    ########################################################################
+    def getPluginList(self, filter="", valuesDict=None, typeId="", targetId=0):
+        retList = []
+        indigoInstallPath = indigo.server.getInstallFolderPath()
+        pluginFolders =['Plugins', 'Plugins (Disabled)']
+        for pluginFolder in pluginFolders:
+            pluginsList = os.listdir(indigoInstallPath + '/' + pluginFolder)
+            for plugin in pluginsList:
+                # Check for Indigo Plugins and exclude 'system' plugins
+                if (plugin.lower().endswith('.indigoplugin')) and (not plugin[0:1] == '.'):
+                    # retrieve plugin Info.plist file
+                    pl = plistlib.readPlist(indigoInstallPath + "/" + pluginFolder + "/" + plugin + "/Contents/Info.plist")
+                    bundleId = pl["CFBundleIdentifier"]
+                    if self.pluginId != bundleId:
+                        # Don't include self (i.e. this plugin) in the plugin list
+                        displayName = pl["CFBundleDisplayName"]
+                        # if disabled plugins folder, append 'Disabled' to name
+                        if pluginFolder == 'Plugins (Disabled)':
+                            displayName += ' [Disabled]'
+                        retList.append((bundleId, displayName))
 
-    def getAllDevices(self, filter=None, valuesDict=None, typeId=0, targetId=0):
+#        retList.sort(key=lambda tup: tup[1])
+        return retList
+
+    def getClassDevices(self, filter="", valuesDict=None, typeId="", targetId=0):
+#        self.logger.debug(u"getClassDevices for: %s" % valuesDict["deviceClass"])
 
         retList = []
-        for dev in indigo.devices.iter():
-            retList.append((dev.id, dev.name))
+
+        deviceClass = valuesDict.get("deviceClass", None)
+        if deviceClass != "plugin":
+            for dev in indigo.devices.iter(deviceClass):
+                retList.append((dev.id, dev.name))
+        else:
+            devicePlugin = valuesDict.get("devicePlugin", None)
+#            self.logger.debug(u"getClassDevices: looking for devices for '%s'" % (devicePlugin))
+            for dev in indigo.devices.iter():
+                if dev.protocol == indigo.kProtocol.Plugin and dev.pluginId == devicePlugin:
+                    for pluginId, pluginDict in dev.globalProps.iteritems():
+                        pass
+#                    self.logger.debug(u"PluginId of '%s' is '%s'" % (dev.name, unicode(pluginId)))
+                    retList.append((dev.id, dev.name))
+
         retList.sort(key=lambda tup: tup[1])
         return retList
 
-    def getStateList(self, filter, valuesDict, typeId, targetId):
+    def getStateList(self, filter="", valuesDict=None, typeId="", targetId=0):
+#        self.logger.debug(u"getStateList for: %s" % valuesDict["baseDevice"])
         retList = []
 
         baseDeviceId = valuesDict.get("baseDevice", None)
@@ -192,4 +233,6 @@ class Plugin(indigo.PluginBase):
     # doesn't do anything, just needed to force other menus to dynamically refresh
 
     def menuChanged(self, valuesDict, typeId, devId):
+ #       self.logger.debug(u"menuChanged: typeId = %s, devId = %s" % (unicode(typeId), unicode(devId)))
         return valuesDict
+
