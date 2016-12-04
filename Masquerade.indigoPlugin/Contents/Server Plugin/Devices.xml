@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<Devices>
+    <Device type="sensor" id="masqSensor">
+        <Name>Sensor Device</Name>
+        <ConfigUI>
+            <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
+			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
+			<Field type="menu" id="baseDevice" filter="">
+				<Label>Device to Masquerade:</Label>
+				<List method="getAllDevices" class="self" filter=""/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+			<Field type="menu" id="masqState">
+				<Label>State to Masquerade:</Label>
+                <List class="self" filter="" method="getStateList" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+            <Field id="matchString" type="textfield">
+                <Label>Match String:</Label>
+            </Field>
+            <Field type="checkbox" id="reverse" defaultValue="false">
+                <Label>Reverse match logic:</Label>
+            </Field>            
+            <Field id="reverseNote" type="label" fontSize="small" fontColor="darkgray">
+                <Label>If the string value of the state should match the given string to be considered "On", leave this unchecked.  If the strings should not match to be considered on, check this box.</Label>
+            </Field>
+        </ConfigUI>
+        <UiDisplayStateId>onOffState</UiDisplayStateId>
+    </Device>
+</Devices>
