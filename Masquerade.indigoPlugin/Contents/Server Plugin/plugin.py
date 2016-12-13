@@ -260,15 +260,21 @@ class Plugin(indigo.PluginBase):
                 # Check for Indigo Plugins and exclude 'system' plugins
                 if (plugin.lower().endswith('.indigoplugin')) and (not plugin[0:1] == '.'):
                     # retrieve plugin Info.plist file
-                    pl = plistlib.readPlist(indigoInstallPath + "/" + pluginFolder + "/" + plugin + "/Contents/Info.plist")
-                    bundleId = pl["CFBundleIdentifier"]
-                    if self.pluginId != bundleId:
-                        # Don't include self (i.e. this plugin) in the plugin list
-                        displayName = pl["CFBundleDisplayName"]
-                        # if disabled plugins folder, append 'Disabled' to name
-                        if pluginFolder == 'Plugins (Disabled)':
-                            displayName += ' [Disabled]'
-                        tempList.append((bundleId, displayName))
+                    path = indigoInstallPath + "/" + pluginFolder + "/" + plugin + "/Contents/Info.plist"
+                    try:
+                        pl = plistlib.readPlist(path)
+                    except:
+                        self.logger.warning(u"getPluginList: Unable to parse plist, skipping: %s" % (path))
+                    else:
+                        self.logger.debug(u"getPluginList: reading plist: %s" % (path))
+                        bundleId = pl["CFBundleIdentifier"]
+                        if self.pluginId != bundleId:
+                            # Don't include self (i.e. this plugin) in the plugin list
+                            displayName = pl["CFBundleDisplayName"]
+                            # if disabled plugins folder, append 'Disabled' to name
+                            if pluginFolder == 'Plugins (Disabled)':
+                                displayName += ' [Disabled]'
+                            tempList.append((bundleId, displayName))
             tempList.sort(key=lambda tup: tup[1])
             retList = retList + tempList
 
@@ -314,20 +320,26 @@ class Plugin(indigo.PluginBase):
         pluginsList = os.listdir(indigoInstallPath + '/Plugins')
         for plugin in pluginsList:
             if (plugin.lower().endswith('.indigoplugin')) and (not plugin[0:1] == '.'):
-                pl = plistlib.readPlist(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Info.plist")
-                bundleId = pl["CFBundleIdentifier"]
-                if bundleId == valuesDict.get("devicePlugin", None):
-                    self.logger.debug("getActionList, checking  bundleId = %s" % (bundleId))
-                    tree = ET.parse(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Server Plugin/Actions.xml")
-                    actions = tree.getroot()
-                    for action in actions:
-                        if action.tag == "Action":
-                            self.logger.debug("getActionList, Action attribs = %s" % (action.attrib))
-                            name = action.find('Name')
-                            callBack = action.find('CallbackMethod')
-                            if name != None and callBack != None:
-                                self.logger.debug("getActionList, Action id = %s, name = '%s', callBackMethod = %s" % (action.attrib["id"], name.text, callBack.text))
-                                retList.append((action.attrib["id"], name.text))
+                path = indigoInstallPath + "/Plugins/" + plugin + "/Contents/Info.plist"
+                try:
+                    pl = plistlib.readPlist(path)
+                except:
+                    self.logger.warning(u"getActionList: Unable to parse plist, skipping: %s" % (path))
+                else:
+                    self.logger.debug(u"getActionList: reading plist: %s" % (path))
+                    bundleId = pl["CFBundleIdentifier"]
+                    if bundleId == valuesDict.get("devicePlugin", None):
+                        self.logger.debug("getActionList, checking  bundleId = %s" % (bundleId))
+                        tree = ET.parse(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Server Plugin/Actions.xml")
+                        actions = tree.getroot()
+                        for action in actions:
+                            if action.tag == "Action":
+                                self.logger.debug("getActionList, Action attribs = %s" % (action.attrib))
+                                name = action.find('Name')
+                                callBack = action.find('CallbackMethod')
+                                if name != None and callBack != None:
+                                    self.logger.debug("getActionList, Action id = %s, name = '%s', callBackMethod = %s" % (action.attrib["id"], name.text, callBack.text))
+                                    retList.append((action.attrib["id"], name.text))
 
         retList.sort(key=lambda tup: tup[1])
         return retList
@@ -339,19 +351,25 @@ class Plugin(indigo.PluginBase):
         pluginsList = os.listdir(indigoInstallPath + '/Plugins')
         for plugin in pluginsList:
             if (plugin.lower().endswith('.indigoplugin')) and (not plugin[0:1] == '.'):
-                pl = plistlib.readPlist(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Info.plist")
-                bundleId = pl["CFBundleIdentifier"]
-                if bundleId == valuesDict.get("devicePlugin", None):
-                    tree = ET.parse(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Server Plugin/Actions.xml")
-                    actions = tree.getroot()
-                    for action in actions:
-                        if action.tag == "Action" and action.attrib["id"] == valuesDict.get("masqAction", None):
-                            configUI = action.find('ConfigUI')
-                            for field in configUI:
-                                self.logger.debug("ConfigUI List: child tag = %s, attrib = %s" % (field.tag, field.attrib))
+                path = indigoInstallPath + "/Plugins/" + plugin + "/Contents/Info.plist"
+                try:
+                    pl = plistlib.readPlist(path)
+                except:
+                    self.logger.warning(u"getActionFieldList: Unable to parse plist, skipping: %s" % (path))
+                else:
+                    self.logger.debug(u"getActionFieldList: reading plist: %s" % (path))
+                    bundleId = pl["CFBundleIdentifier"]
+                    if bundleId == valuesDict.get("devicePlugin", None):
+                        tree = ET.parse(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Server Plugin/Actions.xml")
+                        actions = tree.getroot()
+                        for action in actions:
+                            if action.tag == "Action" and action.attrib["id"] == valuesDict.get("masqAction", None):
+                                configUI = action.find('ConfigUI')
+                                for field in configUI:
+                                    self.logger.debug("ConfigUI List: child tag = %s, attrib = %s" % (field.tag, field.attrib))
 
-                                if not bool(field.attrib.get("hidden", None)):
-                                    retList.append((field.attrib["id"], field.attrib["id"]))
+                                    if not bool(field.attrib.get("hidden", None)):
+                                        retList.append((field.attrib["id"], field.attrib["id"]))
 
         retList.sort(key=lambda tup: tup[1])
         return retList
