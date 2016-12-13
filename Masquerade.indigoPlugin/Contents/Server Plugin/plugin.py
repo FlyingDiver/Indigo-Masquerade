@@ -227,20 +227,18 @@ class Plugin(indigo.PluginBase):
 
             if action.deviceAction == indigo.kDeviceAction.TurnOn:
                 self.logger.debug(u"actionControlDevice: \"%s\" Turn On" % dev.name)
+                props = { dev.pluginProps["masqValueField"] : str(dev.pluginProps["highLimit"]) }
+                basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
 
             elif action.deviceAction == indigo.kDeviceAction.TurnOff:
+                props = { dev.pluginProps["masqValueField"] : str(dev.pluginProps["lowLimit"]) }
+                basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
                 self.logger.debug(u"actionControlDevice: \"%s\" Turn Off" % dev.name)
 
             elif action.deviceAction == indigo.kDeviceAction.SetBrightness:
                 self.logger.debug(u"actionControlDevice: \"%s\" Set Brightness to %d" % (dev.name, action.actionValue))
                 props = { dev.pluginProps["masqValueField"] : str(action.actionValue) }
                 basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
-
-            elif action.deviceAction == indigo.kDeviceAction.BrightenBy:
-                self.logger.debug(u"actionControlDevice: \"%s\" Brighten By %d" % (dev.name, action.actionValue))
-
-            elif action.deviceAction == indigo.kDeviceAction.DimBy:
-                self.logger.debug(u"actionControlDevice: \"%s\" Dim By %d" % (dev.name, action.actionValue))
 
             else:
                 self.logger.error(u"actionControlDevice: \"%s\" Unsupported action requested: %s" % (dev.name, str(action)))
@@ -310,6 +308,7 @@ class Plugin(indigo.PluginBase):
         return retList
 
     def getActionList(self, filter="", valuesDict=None, typeId="", targetId=0):
+#        self.logger.debug("getActionList, valuesDict =\n" + str(valuesDict))
         retList = []
         indigoInstallPath = indigo.server.getInstallFolderPath()
         pluginsList = os.listdir(indigoInstallPath + '/Plugins')
@@ -318,19 +317,23 @@ class Plugin(indigo.PluginBase):
                 pl = plistlib.readPlist(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Info.plist")
                 bundleId = pl["CFBundleIdentifier"]
                 if bundleId == valuesDict.get("devicePlugin", None):
+                    self.logger.debug("getActionList, checking  bundleId = %s" % (bundleId))
                     tree = ET.parse(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Server Plugin/Actions.xml")
                     actions = tree.getroot()
                     for action in actions:
                         if action.tag == "Action":
-                            name = action.find('Name').text
-                            callBack = action.find('CallbackMethod').text
-                            self.logger.debug("getActionList, Action id = %s, name = '%s', callBackMethod = %s" % (action.attrib["id"], name, callBack))
-                            retList.append((action.attrib["id"], name))
+                            self.logger.debug("getActionList, Action attribs = %s" % (action.attrib))
+                            name = action.find('Name')
+                            callBack = action.find('CallbackMethod')
+                            if name != None and callBack != None:
+                                self.logger.debug("getActionList, Action id = %s, name = '%s', callBackMethod = %s" % (action.attrib["id"], name.text, callBack.text))
+                                retList.append((action.attrib["id"], name.text))
 
         retList.sort(key=lambda tup: tup[1])
         return retList
 
     def getActionFieldList(self, filter="", valuesDict=None, typeId="", targetId=0):
+#        self.logger.debug("getActionFieldList, valuesDict =\n" + str(valuesDict))
         retList = []
         indigoInstallPath = indigo.server.getInstallFolderPath()
         pluginsList = os.listdir(indigoInstallPath + '/Plugins')
@@ -365,7 +368,7 @@ class Plugin(indigo.PluginBase):
         valuesDict = indigo.Dict(pluginProps)
         errorsDict = indigo.Dict()
 
-        self.logger.debug("getDeviceConfigUiValues, valuesDict =\n" + str(valuesDict))
+#        self.logger.debug("getDeviceConfigUiValues, valuesDict =\n" + str(valuesDict))
 
         return (valuesDict, errorsDict)
 
@@ -373,7 +376,7 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(u"validateDeviceConfigUi, typeID = " + typeId)
         errorsDict = indigo.Dict()
 
-        self.logger.debug("validateDeviceConfigUi, valuesDict =\n" + str(valuesDict))
+#        self.logger.debug("validateDeviceConfigUi, valuesDict =\n" + str(valuesDict))
 
         if len(errorsDict) > 0:
             return (False, valuesDict, errorsDict)
