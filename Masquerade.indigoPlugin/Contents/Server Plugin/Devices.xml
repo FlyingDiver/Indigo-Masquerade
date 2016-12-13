@@ -44,4 +44,64 @@
         </ConfigUI>
         <UiDisplayStateId>onOffState</UiDisplayStateId>
     </Device>
+    <Device type="dimmer" id="masqDimmer">
+        <Name>Dimmer Device</Name>
+        <ConfigUI>
+            <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
+			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
+			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
+
+			<Field type="menu" id="deviceClass" defaultValue="Plugin">
+				<Label>Device Class:</Label>
+                <List>
+                    <Option value="indigo.insteon">Insteon</Option>
+                    <Option value="plugin">Plugin</Option>
+                    <Option value="indigo.zwave">ZWave</Option>
+                    <Option value="indigo.x10">X10</Option>
+                </List>
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+            <Field type="menu" id="devicePlugin" visibleBindingId="deviceClass" visibleBindingValue="plugin">
+                <Label>Select Plugin:</Label>
+                <List method="getPluginList" dynamicReload="true" class="self" filter="" />
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>
+			<Field type="menu" id="baseDevice">
+				<Label>Device to Masquerade:</Label>
+				<List method="getClassDevices" dynamicReload="true" class="self" filter="" />
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+			<Field type="menu" id="masqState">
+				<Label>State to Masquerade:</Label>
+                <List method="getStateList" dynamicReload="true" class="self" filter="" />
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+            <Field id="lowLimit" type="textfield" defaultValue="0" >
+                <Label>Low Limit:</Label>
+            </Field>
+            <Field id="highLimit" type="textfield" defaultValue="100" >
+                <Label>High Limit:</Label>
+            </Field>
+            <Field id="limitNote" type="label" fontSize="small" fontColor="darkgray">
+                <Label>Set the "Low Limit" to the underlying device value for 0% on the dimmer.  Set the "High Limit" to the 100% value for the dimmer.</Label>
+            </Field>
+            <Field type="checkbox" id="reverse" defaultValue="false">
+                <Label>Reverse match logic:</Label>
+            </Field>            
+            <Field id="reverseNote" type="label" fontSize="small" fontColor="darkgray">
+                <Label>To reverse the mapping of the input state so that the high limit is 0% and the low limit is 100%, check this box.</Label>
+            </Field>
+			<Field type="menu" id="masqAction">
+				<Label>Action to set masqueraded state:</Label>
+                <List method="getActionList" dynamicReload="true" class="self" filter="" />
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+			<Field type="menu" id="masqValueField">
+				<Label>Field to set masqueraded state:</Label>
+                <List method="getActionFieldList" dynamicReload="true" class="self" filter="" />
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+        </ConfigUI>
+        <UiDisplayStateId>onOffState</UiDisplayStateId>
+    </Device>
 </Devices>
