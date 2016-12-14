@@ -138,6 +138,46 @@ class Plugin(indigo.PluginBase):
 
     ################################################################################
     #
+    #   Scaling methods
+
+    def scaleBaseToMasq(self, masqDevice, input):
+
+        lowLimit = int(masqDevice.pluginProps["lowLimit"])
+        highLimit = int(masqDevice.pluginProps["highLimit"])
+        reverse = bool(masqDevice.pluginProps["reverse"])
+
+        if input < lowLimit:
+            self.logger.warning(u"Input value for %s is lower than expected: %d" % (masqDevice.name, input))
+            input = lowLimit
+        elif input > highLimit:
+            self.logger.warning(u"Input value for %s is higher than expected: %d" % (masqDevice.name, input))
+            input = highLimit
+
+        scaled = int((input - lowLimit) * (100.0 / (highLimit - lowLimit)))
+
+        if reverse:
+            scaled = 100 - scaled
+
+        self.logger.debug(u"scaleBaseToMasq: lowLimit = %d, highLimit = %d, reverse = %s, input = %d, scaled = %d" % (lowLimit, highLimit, str(reverse), input, scaled))
+        return scaled
+
+    def scaleMasqToBase(self, masqDevice, input):
+
+        lowLimit = int(masqDevice.pluginProps["lowLimit"])
+        highLimit = int(masqDevice.pluginProps["highLimit"])
+        reverse = bool(masqDevice.pluginProps["reverse"])
+
+        scaled = int((input * (highLimit - lowLimit) / 100.0) + lowLimit)
+
+        if reverse:
+            scaled = highLimit - (scaled - lowLimit)
+
+        self.logger.debug(u"scaleMasqToBase: lowLimit = %d, highLimit = %d, reverse = %s, input = %d, scaled = %d" % (lowLimit, highLimit, str(reverse), input, scaled))
+        return scaled
+
+
+    ################################################################################
+    #
     # delegate methods for indigo.devices.subscribeToChanges()
     #
     ################################################################################
@@ -182,62 +222,36 @@ class Plugin(indigo.PluginBase):
         masqState = masqDevice.pluginProps["masqState"]
 
         if oldDevice.states[masqState] != newDevice.states[masqState]:
-            self.logger.debug(u"%s, a masqueraded device, has been updated: %s (%s)." % (oldDevice.name, masqDevice.name, newDevice.states[masqState]))
-
-            lowLimit = float(masqDevice.pluginProps["lowLimit"])
-            highLimit = float(masqDevice.pluginProps["highLimit"])
-            reverse = bool(masqDevice.pluginProps["reverse"])
-            input = float(newDevice.states[masqState])
-
-
-            if input < lowLimit:
-                self.logger.warning(u"Input value for %s is lower than expected: %f" % (masqDevice.name, input))
-                scaled = 0
-            elif input > highLimit:
-                self.logger.warning(u"Input value for %s is higher than expected: %f" % (masqDevice.name, input))
-                scaled = 100
-            else:
-                if reverse:
-                    scaled = (input - highLimit) * (100.0 / (lowLimit - highLimit))
-                else:
-                    scaled = (input - lowLimit) * (100.0 / (highLimit - lowLimit))
-
-            self.logger.debug(u"lowLimit = %f, highLimit = %f, reverse = %s, scaled = %f" % (lowLimit, highLimit, str(reverse), scaled))
-
-            masqDevice.updateStateOnServer(key='brightnessLevel', value = int(scaled))
+            baseValue = int(newDevice.states[masqState])
+            scaledValue = self.scaleBaseToMasq(masqDevice, baseValue)
+            self.logger.debug(u"dimmerDeviceUpdate: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, scaledValue))
+            masqDevice.updateStateOnServer(key='brightnessLevel', value = scaledValue)
 
 
     ########################################
 
     def actionControlDevice(self, action, dev):
 
-        self.logger.debug(u"actionControlDevice: deviceAction   = %s" % action.deviceAction)
-        self.logger.debug(u"actionControlDevice: actionValue    = %s" % action.actionValue)
-        self.logger.debug(u"actionControlDevice: devicePlugin   = %s" % dev.pluginProps["devicePlugin"])
-        self.logger.debug(u"actionControlDevice: baseDevice     = %s" % dev.pluginProps["baseDevice"])
-        self.logger.debug(u"actionControlDevice: masqAction     = %s" % dev.pluginProps["masqAction"])
-        self.logger.debug(u"actionControlDevice: masqValueField = %s" % dev.pluginProps["masqValueField"])
-        self.logger.debug(u"actionControlDevice: masqState      = %s" % dev.pluginProps["masqState"])
-        self.logger.debug(u"actionControlDevice: lowLimit       = %s" % dev.pluginProps["lowLimit"])
-        self.logger.debug(u"actionControlDevice: highLimit      = %s" % dev.pluginProps["highLimit"])
-        self.logger.debug(u"actionControlDevice: reverse        = %s" % dev.pluginProps["reverse"])
-
         basePlugin = indigo.server.getPlugin(dev.pluginProps["devicePlugin"])
         if basePlugin.isEnabled():
 
             if action.deviceAction == indigo.kDeviceAction.TurnOn:
+
                 self.logger.debug(u"actionControlDevice: \"%s\" Turn On" % dev.name)
-                props = { dev.pluginProps["masqValueField"] : str(dev.pluginProps["highLimit"]) }
+                props = { dev.pluginProps["masqValueField"] : dev.pluginProps["highLimit"] }
                 basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
 
             elif action.deviceAction == indigo.kDeviceAction.TurnOff:
-                props = { dev.pluginProps["masqValueField"] : str(dev.pluginProps["lowLimit"]) }
+
+                props = { dev.pluginProps["masqValueField"]: dev.pluginProps["lowLimit"] }
                 basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
                 self.logger.debug(u"actionControlDevice: \"%s\" Turn Off" % dev.name)
 
             elif action.deviceAction == indigo.kDeviceAction.SetBrightness:
-                self.logger.debug(u"actionControlDevice: \"%s\" Set Brightness to %d" % (dev.name, action.actionValue))
-                props = { dev.pluginProps["masqValueField"] : str(action.actionValue) }
+
+                scaledValue = self.scaleMasqToBase(dev, action.actionValue)
+                self.logger.debug(u"actionControlDevice: \"%s\" Set Brightness to %d" % (dev.name, scaledValue))
+                props = { dev.pluginProps["masqValueField"] : str(scaledValue) }
                 basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
 
             else:
