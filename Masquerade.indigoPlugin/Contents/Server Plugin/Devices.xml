@@ -42,7 +42,6 @@
                 <Label>If the string value of the state should match the given string to be considered "On", leave this unchecked.  If the strings should not match to be considered on, check this box.</Label>
             </Field>
         </ConfigUI>
-        <UiDisplayStateId>onOffState</UiDisplayStateId>
     </Device>
     <Device type="dimmer" id="masqDimmer">
         <Name>Dimmer Device</Name>
@@ -76,32 +75,66 @@
                 <List method="getStateList" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
 			</Field>
-            <Field id="lowLimit" type="textfield" defaultValue="0" >
+			
+            <Field id = "showStateSettings" type = "checkbox" >
+                <Label>Advanced State Settings:</Label>
+                <Description>Show/Hide</Description>
+            </Field>
+
+            <Field id="lowLimitState" type="textfield" defaultValue="0" visibleBindingId = "showStateSettings" visibleBindingValue = "true">
                 <Label>Low Limit:</Label>
             </Field>
-            <Field id="highLimit" type="textfield" defaultValue="100" >
+            <Field id="highLimitState" type="textfield" defaultValue="100" visibleBindingId = "showStateSettings" visibleBindingValue = "true">
                 <Label>High Limit:</Label>
             </Field>
-            <Field id="limitNote" type="label" fontSize="small" fontColor="darkgray">
+            <Field id="limitNoteState" type="label" fontSize="small" fontColor="darkgray" visibleBindingId = "showStateSettings" visibleBindingValue = "true">
                 <Label>Set the "Low Limit" to the underlying device value for 0% on the dimmer.  Set the "High Limit" to the 100% value for the dimmer.</Label>
             </Field>
-            <Field type="checkbox" id="reverse" defaultValue="false">
-                <Label>Reverse match logic:</Label>
+            <Field id="reverseState" type="checkbox" defaultValue="false" visibleBindingId = "showStateSettings" visibleBindingValue = "true">
+                <Label>Reverse scaling:</Label>
             </Field>            
-            <Field id="reverseNote" type="label" fontSize="small" fontColor="darkgray">
-                <Label>To reverse the mapping of the input state so that the high limit is 0% and the low limit is 100%, check this box.</Label>
+            <Field id="reverseNoteState" type="label" fontSize="small" fontColor="darkgray" visibleBindingId = "showStateSettings" visibleBindingValue = "true">
+                <Label>To reverse the scaling of the device state so that the high limit is 0% and the low limit is 100%, check this box.</Label>
             </Field>
-			<Field type="menu" id="masqAction">
+            
+            <Field id="sep1" type="separator"/>
+            
+			<Field id="masqAction" type="menu">
 				<Label>Action to set masqueraded state:</Label>
                 <List method="getActionList" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
 			</Field>
-			<Field type="menu" id="masqValueField">
+			<Field id="masqValueField" type="menu">
 				<Label>Field to set masqueraded state:</Label>
                 <List method="getActionFieldList" dynamicReload="true" class="self" filter="" />
-                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+            <Field id = "showActionSettings" type = "checkbox" >
+                <Label>Advanced Action Settings:</Label>
+                <Description>Show/Hide</Description>
+			</Field>
+            <Field id="lowLimitAction" type="textfield" defaultValue="0" visibleBindingId = "showActionSettings" visibleBindingValue = "true">
+                <Label>Low Limit:</Label>
+            </Field>
+            <Field id="highLimitAction" type="textfield" defaultValue="100" visibleBindingId = "showActionSettings" visibleBindingValue = "true">
+                <Label>High Limit:</Label>
+            </Field>
+            <Field id="limitNoteAction" type="label" fontSize="small" fontColor="darkgray" visibleBindingId = "showActionSettings" visibleBindingValue = "true">
+                <Label>Set the "Low Limit" to the underlying device value for 0% on the dimmer.  Set the "High Limit" to the 100% value for the dimmer.</Label>
+            </Field>
+            <Field id="reverseAction" type="checkbox" defaultValue="false" visibleBindingId = "showActionSettings" visibleBindingValue = "true">
+                <Label>Reverse scaling logic:</Label>
+            </Field>            
+            <Field id="reverseNoteAction" type="label" fontSize="small" fontColor="darkgray" visibleBindingId = "showActionSettings" visibleBindingValue = "true">
+                <Label>To reverse the scaling of the action value so that the high limit is 0% and the low limit is 100%, check this box.</Label>
+            </Field>
+  			<Field id="masqValueFormat" type="menu" defaultValue="Decimal" visibleBindingId = "showActionSettings" visibleBindingValue = "true">
+				<Label>Device Class:</Label>
+                <List>
+                    <Option value="Hexidecimal">Hexidecimal</Option>
+                    <Option value="Decimal">Decimal</Option>
+                    <Option value="Octal">Octal</Option>
+                </List>
 			</Field>
         </ConfigUI>
-        <UiDisplayStateId>onOffState</UiDisplayStateId>
     </Device>
 </Devices>
