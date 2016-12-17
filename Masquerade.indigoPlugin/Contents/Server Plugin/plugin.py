@@ -85,6 +85,9 @@ class Plugin(indigo.PluginBase):
         self.logger.debug("Adding Device %s (%d) to device list" % (device.name, device.id))
         assert device.id not in self.masqueradeList
         self.masqueradeList[device.id] = device
+        baseDevice = indigo.devices[int(device.pluginProps["baseDevice"])]
+        self.updateDevice(device, baseDevice)
+
 
     def deviceStopComm(self, device):
         self.logger.debug("Removing Device %s (%d) from device list" % (device.name, device.id))
@@ -205,36 +208,33 @@ class Plugin(indigo.PluginBase):
     def deviceUpdated(self, oldDevice, newDevice):
         indigo.PluginBase.deviceUpdated(self, oldDevice, newDevice)
 
-        for myDeviceId, myDevice in sorted(self.masqueradeList.iteritems()):
-            baseDevice = int(myDevice.pluginProps["baseDevice"])
+        for masqDeviceId, masqDevice in sorted(self.masqueradeList.iteritems()):
+            baseDevice = int(masqDevice.pluginProps["baseDevice"])
             if oldDevice.id == baseDevice:
-                if myDevice.deviceTypeId == "masqSensor":
-                    self.sensorDeviceUpdate(myDevice, oldDevice, newDevice)
-                elif myDevice.deviceTypeId == "masqDimmer":
-                    self.dimmerDeviceUpdate(myDevice, oldDevice, newDevice)
+                masqState = masqDevice.pluginProps["masqState"]
+                if oldDevice.states[masqState] != newDevice.states[masqState]:
+                    self.updateDevice(masqDevice, newDevice)
 
 
-    def sensorDeviceUpdate(self, masqDevice, oldDevice, newDevice):
+    def updateDevice(self, masqDevice, newDevice):
 
         masqState = masqDevice.pluginProps["masqState"]
 
-        if oldDevice.states[masqState] != newDevice.states[masqState]:
+        if masqDevice.deviceTypeId == "masqSensor":
+
             matchString = masqDevice.pluginProps["matchString"]
             reverse = bool(masqDevice.pluginProps["reverse"])
             match = (str(newDevice.states[masqState]) == matchString)
             if reverse:
                 match = not match
-            self.logger.debug(u"sensorDeviceUpdate:  %s (%s) --> %s (%s)" % (newDevice.name, newDevice.states[masqState], masqDevice.name, str(match)))
+            self.logger.debug(u"updateDevice:  %s (%s) --> %s (%s)" % (newDevice.name, newDevice.states[masqState], masqDevice.name, str(match)))
             masqDevice.updateStateOnServer(key='onOffState', value = match)
 
-    def dimmerDeviceUpdate(self, masqDevice, oldDevice, newDevice):
+        elif masqDevice.deviceTypeId == "masqDimmer":
 
-        masqState = masqDevice.pluginProps["masqState"]
-
-        if oldDevice.states[masqState] != newDevice.states[masqState]:
             baseValue = int(newDevice.states[masqState])
             scaledValue = self.scaleBaseToMasq(masqDevice, baseValue)
-            self.logger.debug(u"dimmerDeviceUpdate: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, scaledValue))
+            self.logger.debug(u"updateDevice: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, scaledValue))
             masqDevice.updateStateOnServer(key='brightnessLevel', value = scaledValue)
 
 
