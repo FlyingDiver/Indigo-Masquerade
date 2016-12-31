@@ -6,25 +6,16 @@
             <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
 			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
-
-			<Field type="menu" id="deviceClass" defaultValue="Plugin">
-				<Label>Device Class:</Label>
-                <List>
-                    <Option value="indigo.insteon">Insteon</Option>
-                    <Option value="plugin">Plugin</Option>
-                    <Option value="indigo.zwave">ZWave</Option>
-                    <Option value="indigo.x10">X10</Option>
-                </List>
-                <CallbackMethod>menuChanged</CallbackMethod>
-			</Field>
-            <Field type="menu" id="devicePlugin" visibleBindingId="deviceClass" visibleBindingValue="plugin">
+			<Field type="textfield" id="deviceClass" defaultValue="Plugin" hidden="true" />
+			
+            <Field type="menu" id="devicePlugin">
                 <Label>Select Plugin:</Label>
                 <List method="getPluginList" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>
 			<Field type="menu" id="baseDevice">
 				<Label>Device to Masquerade:</Label>
-				<List method="getClassDevices" dynamicReload="true" class="self" filter="" />
+				<List method="getPluginDevices" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
 			</Field>
 			<Field type="menu" id="masqState">
@@ -43,31 +34,23 @@
             </Field>
         </ConfigUI>
     </Device>
+    
     <Device type="dimmer" id="masqDimmer">
         <Name>Dimmer Device</Name>
         <ConfigUI>
             <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
 			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
+			<Field type="textfield" id="deviceClass" defaultValue="Plugin" hidden="true" />
 
-			<Field type="menu" id="deviceClass" defaultValue="Plugin">
-				<Label>Device Class:</Label>
-                <List>
-                    <Option value="indigo.insteon">Insteon</Option>
-                    <Option value="plugin">Plugin</Option>
-                    <Option value="indigo.zwave">ZWave</Option>
-                    <Option value="indigo.x10">X10</Option>
-                </List>
-                <CallbackMethod>menuChanged</CallbackMethod>
-			</Field>
-            <Field type="menu" id="devicePlugin" visibleBindingId="deviceClass" visibleBindingValue="plugin">
+            <Field type="menu" id="devicePlugin">
                 <Label>Select Plugin:</Label>
                 <List method="getPluginList" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>
 			<Field type="menu" id="baseDevice">
 				<Label>Device to Masquerade:</Label>
-				<List method="getClassDevices" dynamicReload="true" class="self" filter="" />
+				<List method="getPluginDevices" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
 			</Field>
 			<Field type="menu" id="masqState">
@@ -135,6 +118,23 @@
                     <Option value="Octal">Octal</Option>
                 </List>
 			</Field>
+        </ConfigUI>
+    </Device>
+    
+    <Device type="speedcontrol" id="masqSpeedControl">
+        <Name>Speed Control Device</Name>
+        <ConfigUI>
+            <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
+			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
+			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
+
+			<Field type="menu" id="baseDevice">
+				<Label>Device to Masquerade:</Label>
+				<List class="indigo.devices" filter="indigo.dimmer" />
+			</Field>
+            <Field id="scaleFactor" type="textfield" defaultValue="25">
+                <Label>Scale Factor:</Label>
+            </Field>
         </ConfigUI>
     </Device>
 </Devices>

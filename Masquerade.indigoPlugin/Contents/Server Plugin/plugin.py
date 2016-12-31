@@ -86,7 +86,7 @@ class Plugin(indigo.PluginBase):
         assert device.id not in self.masqueradeList
         self.masqueradeList[device.id] = device
         baseDevice = indigo.devices[int(device.pluginProps["baseDevice"])]
-        self.updateDevice(device, baseDevice)
+        self.updateDevice(device, None, baseDevice)
 
 
     def deviceStopComm(self, device):
@@ -211,31 +211,38 @@ class Plugin(indigo.PluginBase):
         for masqDeviceId, masqDevice in sorted(self.masqueradeList.iteritems()):
             baseDevice = int(masqDevice.pluginProps["baseDevice"])
             if oldDevice.id == baseDevice:
-                masqState = masqDevice.pluginProps["masqState"]
-                if oldDevice.states[masqState] != newDevice.states[masqState]:
-                    self.updateDevice(masqDevice, newDevice)
+                self.updateDevice(masqDevice, oldDevice, newDevice)
 
 
-    def updateDevice(self, masqDevice, newDevice):
-
-        masqState = masqDevice.pluginProps["masqState"]
+    def updateDevice(self, masqDevice, oldDevice, newDevice):
 
         if masqDevice.deviceTypeId == "masqSensor":
 
-            matchString = masqDevice.pluginProps["matchString"]
-            reverse = bool(masqDevice.pluginProps["reverse"])
-            match = (str(newDevice.states[masqState]) == matchString)
-            if reverse:
-                match = not match
-            self.logger.debug(u"updateDevice:  %s (%s) --> %s (%s)" % (newDevice.name, newDevice.states[masqState], masqDevice.name, str(match)))
-            masqDevice.updateStateOnServer(key='onOffState', value = match)
+            masqState = masqDevice.pluginProps["masqState"]
+            if oldDevice == None or oldDevice.states[masqState] != newDevice.states[masqState]:
+                matchString = masqDevice.pluginProps["matchString"]
+                reverse = bool(masqDevice.pluginProps["reverse"])
+                match = (str(newDevice.states[masqState]) == matchString)
+                if reverse:
+                    match = not match
+                self.logger.debug(u"updateDevice masqSensor:  %s (%s) --> %s (%s)" % (newDevice.name, newDevice.states[masqState], masqDevice.name, str(match)))
+                masqDevice.updateStateOnServer(key='onOffState', value = match)
 
         elif masqDevice.deviceTypeId == "masqDimmer":
 
-            baseValue = int(newDevice.states[masqState])
-            scaledValue = self.scaleBaseToMasq(masqDevice, baseValue)
-            self.logger.debug(u"updateDevice: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, scaledValue))
-            masqDevice.updateStateOnServer(key='brightnessLevel', value = scaledValue)
+            masqState = masqDevice.pluginProps["masqState"]
+            if oldDevice == None or oldDevice.states[masqState] != newDevice.states[masqState]:
+                baseValue = int(newDevice.states[masqState])
+                scaledValue = self.scaleBaseToMasq(masqDevice, baseValue)
+                self.logger.debug(u"updateDevice masqDimmer: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, scaledValue))
+                masqDevice.updateStateOnServer(key='brightnessLevel', value = scaledValue)
+
+        elif masqDevice.deviceTypeId == "masqSpeedControl":
+            if oldDevice == None or oldDevice.brightness != newDevice.brightness:
+                baseValue = newDevice.brightness    # convert this to a speedIndex?
+                self.logger.debug(u"updateDevice masqSpeedControl: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, baseValue))
+                masqDevice.updateStateOnServer(key='speedLevel', value = baseValue)
+
 
 
     ########################################
@@ -270,10 +277,18 @@ class Plugin(indigo.PluginBase):
         else:
             self.logger.warning(u"actionControlDevice: Device %s is disabled." % (dev.name))
 
+
+    def actionControlSpeedControl(self, action, dev):
+        self.logger.debug(u"actionControlSpeedControl: \"%s\" Set Speed to %d" % (dev.name, action.actionValue))
+        scaleFactor = int(dev.pluginProps["scaleFactor"])
+        indigo.dimmer.setBrightness(int(dev.pluginProps["baseDevice"]), value=(action.actionValue * scaleFactor))
+
+
     ########################################################################
     # This method is called to generate a list of plugin identifiers / names
     ########################################################################
     def getPluginList(self, filter="", valuesDict=None, typeId="", targetId=0):
+
         retList = []
         indigoInstallPath = indigo.server.getInstallFolderPath()
         pluginFolders =['Plugins', 'Plugins (Disabled)']
@@ -290,7 +305,7 @@ class Plugin(indigo.PluginBase):
                     except:
                         self.logger.warning(u"getPluginList: Unable to parse plist, skipping: %s" % (path))
                     else:
-                        self.logger.debug(u"getPluginList: reading plist: %s" % (path))
+#                        self.logger.debug(u"getPluginList: reading plist: %s" % (path))
                         bundleId = pl["CFBundleIdentifier"]
                         if self.pluginId != bundleId:
                             # Don't include self (i.e. this plugin) in the plugin list
@@ -304,28 +319,23 @@ class Plugin(indigo.PluginBase):
 
         return retList
 
-    def getClassDevices(self, filter="", valuesDict=None, typeId="", targetId=0):
+    def getPluginDevices(self, filter="", valuesDict=None, typeId="", targetId=0):
 
         retList = []
-
-        deviceClass = valuesDict.get("deviceClass", None)
-        if deviceClass != "plugin":
-            for dev in indigo.devices.iter(deviceClass):
+        devicePlugin = valuesDict.get("devicePlugin", None)
+        for dev in indigo.devices.iter():
+            if dev.protocol == indigo.kProtocol.Plugin and dev.pluginId == devicePlugin:
+                for pluginId, pluginDict in dev.globalProps.iteritems():
+                    pass
                 retList.append((dev.id, dev.name))
-        else:
-            devicePlugin = valuesDict.get("devicePlugin", None)
-            for dev in indigo.devices.iter():
-                if dev.protocol == indigo.kProtocol.Plugin and dev.pluginId == devicePlugin:
-                    for pluginId, pluginDict in dev.globalProps.iteritems():
-                        pass
-                    retList.append((dev.id, dev.name))
 
         retList.sort(key=lambda tup: tup[1])
         return retList
 
-    def getStateList(self, filter="", valuesDict=None, typeId="", targetId=0):
-        retList = []
 
+    def getStateList(self, filter="", valuesDict=None, typeId="", targetId=0):
+
+        retList = []
         baseDeviceId = valuesDict.get("baseDevice", None)
         if not baseDeviceId:
             return retList
@@ -339,6 +349,7 @@ class Plugin(indigo.PluginBase):
 
     def getActionList(self, filter="", valuesDict=None, typeId="", targetId=0):
 #        self.logger.debug("getActionList, valuesDict =\n" + str(valuesDict))
+
         retList = []
         indigoInstallPath = indigo.server.getInstallFolderPath()
         pluginsList = os.listdir(indigoInstallPath + '/Plugins')
@@ -350,7 +361,7 @@ class Plugin(indigo.PluginBase):
                 except:
                     self.logger.warning(u"getActionList: Unable to parse plist, skipping: %s" % (path))
                 else:
-                    self.logger.debug(u"getActionList: reading plist: %s" % (path))
+#                    self.logger.debug(u"getActionList: reading plist: %s" % (path))
                     bundleId = pl["CFBundleIdentifier"]
                     if bundleId == valuesDict.get("devicePlugin", None):
                         self.logger.debug("getActionList, checking  bundleId = %s" % (bundleId))
@@ -370,6 +381,7 @@ class Plugin(indigo.PluginBase):
 
     def getActionFieldList(self, filter="", valuesDict=None, typeId="", targetId=0):
 #        self.logger.debug("getActionFieldList, valuesDict =\n" + str(valuesDict))
+
         retList = []
         indigoInstallPath = indigo.server.getInstallFolderPath()
         pluginsList = os.listdir(indigoInstallPath + '/Plugins')
@@ -381,7 +393,7 @@ class Plugin(indigo.PluginBase):
                 except:
                     self.logger.warning(u"getActionFieldList: Unable to parse plist, skipping: %s" % (path))
                 else:
-                    self.logger.debug(u"getActionFieldList: reading plist: %s" % (path))
+#                    self.logger.debug(u"getActionFieldList: reading plist: %s" % (path))
                     bundleId = pl["CFBundleIdentifier"]
                     if bundleId == valuesDict.get("devicePlugin", None):
                         tree = ET.parse(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Server Plugin/Actions.xml")
