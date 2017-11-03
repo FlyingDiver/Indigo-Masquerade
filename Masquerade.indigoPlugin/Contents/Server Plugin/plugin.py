@@ -228,6 +228,14 @@ class Plugin(indigo.PluginBase):
                 self.logger.debug(u"updateDevice masqSensor:  %s (%s) --> %s (%s)" % (newDevice.name, newDevice.states[masqState], masqDevice.name, str(match)))
                 masqDevice.updateStateOnServer(key='onOffState', value = match)
 
+        elif masqDevice.deviceTypeId == "masqValueSensor":
+
+            masqState = masqDevice.pluginProps["masqState"]
+            if oldDevice == None or oldDevice.states[masqState] != newDevice.states[masqState]:
+                baseValue = float(newDevice.states[masqState])
+                self.logger.debug(u"updateDevice masqValueSensor: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, baseValue))
+                masqDevice.updateStateOnServer(key='sensorValue', value = baseValue)
+
         elif masqDevice.deviceTypeId == "masqDimmer":
 
             masqState = masqDevice.pluginProps["masqState"]
