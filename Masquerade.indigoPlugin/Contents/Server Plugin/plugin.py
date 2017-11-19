@@ -226,7 +226,27 @@ class Plugin(indigo.PluginBase):
                 if reverse:
                     match = not match
                 self.logger.debug(u"updateDevice masqSensor:  %s (%s) --> %s (%s)" % (newDevice.name, newDevice.states[masqState], masqDevice.name, str(match)))
-                masqDevice.updateStateOnServer(key='onOffState', value = match)
+
+                if masqDevice.pluginProps["masqSensorSubtype"] == "Generic":
+                    masqDevice.updateStateOnServer(key='onOffState', value = match)
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.None)
+
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "MotionSensor":
+                    masqDevice.updateStateOnServer(key='onOffState', value = match)
+                    if match:
+                        masqDevice.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
+                    else:
+                        masqDevice.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
+                    
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "Power":
+                    masqDevice.updateStateOnServer(key='onOffState', value = match)
+                    if match:
+                        masqDevice.updateStateImageOnServer(indigo.kStateImageSel.PowerOn)
+                    else:
+                        masqDevice.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
+                    
+                else:
+                    self.logger.debug(u"updateDevice masqSensor, unknown subtype: %s" % (masqDevice.pluginProps["masqSensorSubtype"]))
 
         elif masqDevice.deviceTypeId == "masqValueSensor":
 
@@ -237,21 +257,26 @@ class Plugin(indigo.PluginBase):
                 
                 if masqDevice.pluginProps["masqSensorSubtype"] == "Generic":
                     masqDevice.updateStateOnServer(key='sensorValue', value = baseValue)
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.None)
 
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "Temperature-F":
-                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.TemperatureSensorOn)
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.TemperatureSensor)
                     masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=1, uiValue=str(baseValue) + u' °F')
 
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "Temperature-C":
-                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.TemperatureSensorOn)
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.TemperatureSensor)
                     masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=1, uiValue=str(baseValue) + u' °C')
 
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "Humidity":
-                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.HumiditySensorOn)
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.HumiditySensor)
                     masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'%')
 
-                elif masqDevice.pluginProps["masqSensorSubtype"] == "Ambient":
-                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.LightSensorOn)
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "Luminence":
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.LightSensor)
+                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u' lux')
+
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "Luminence%":
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.LightSensor)
                     masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'%')
 
                 else:

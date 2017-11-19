@@ -32,7 +32,15 @@
             <Field id="reverseNote" type="label" fontSize="small" fontColor="darkgray">
                 <Label>If the string value of the state should match the given string to be considered "On", leave this unchecked.  If the strings should not match to be considered on, check this box.</Label>
             </Field>
-        </ConfigUI>
+    			<Field id="masqSensorSubtype" type="menu" defaultValue="Generic">
+				<Label>Sensor Type:</Label>
+                <List>
+                    <Option value="Generic">Generic</Option>
+                    <Option value="Power">Power On/Off</Option>
+                    <Option value="MotionSensor">Motion Sensor</Option>
+                </List>
+			</Field>
+       </ConfigUI>
     </Device>
     
     <Device type="sensor" id="masqValueSensor">
@@ -65,7 +73,8 @@
                     <Option value="Temperature-F">Temperature (F)</Option>
                     <Option value="Temperature-C">Temperature (C)</Option>
                     <Option value="Humidity">Humidity</Option>
-                    <Option value="Ambient">Ambient Light</Option>
+                    <Option value="Luminence">Luminence (lux)</Option>
+                    <Option value="Luminence%">Luminence (%)</Option>
                 </List>
 			</Field>
        </ConfigUI>
