@@ -234,7 +234,29 @@ class Plugin(indigo.PluginBase):
             if oldDevice == None or oldDevice.states[masqState] != newDevice.states[masqState]:
                 baseValue = float(newDevice.states[masqState])
                 self.logger.debug(u"updateDevice masqValueSensor: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, baseValue))
-                masqDevice.updateStateOnServer(key='sensorValue', value = baseValue)
+                
+                if masqDevice.pluginProps["masqSensorSubtype"] == "Generic":
+                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue)
+
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "Temperature-F":
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.TemperatureSensorOn)
+                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=1, uiValue=str(baseValue) + u' °F')
+
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "Temperature-C":
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.TemperatureSensorOn)
+                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=1, uiValue=str(baseValue) + u' °C')
+
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "Humidity":
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.HumiditySensorOn)
+                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'%')
+
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "Ambient":
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.LightSensorOn)
+                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'%')
+
+                else:
+                    self.logger.debug(u"updateDevice masqSensor, unknown subtype: %s" % (masqDevice.pluginProps["masqSensorSubtype"]))
+                    
 
         elif masqDevice.deviceTypeId == "masqDimmer":
 
