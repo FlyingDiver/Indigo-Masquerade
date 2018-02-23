@@ -73,8 +73,8 @@
                     <Option value="Temperature-F">Temperature (F)</Option>
                     <Option value="Temperature-C">Temperature (C)</Option>
                     <Option value="Humidity">Humidity</Option>
-                    <Option value="Luminence">Luminence (lux)</Option>
-                    <Option value="Luminence%">Luminence (%)</Option>
+                    <Option value="Luminance">Luminance (lux)</Option>
+                    <Option value="Luminance%">Luminance (%)</Option>
                 </List>
 			</Field>
        </ConfigUI>
