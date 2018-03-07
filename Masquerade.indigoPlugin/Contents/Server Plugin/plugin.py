@@ -11,8 +11,6 @@ import time
 import logging
 import xml.etree.ElementTree as ET
 
-from ghpu import GitHubPluginUpdater
-
 kCurDevVersCount = 0        # current version of plugin devices
 
 ################################################################################
@@ -40,11 +38,6 @@ class Plugin(indigo.PluginBase):
 
         self.masqueradeList = {}
 
-        self.updater = GitHubPluginUpdater(self)
-        self.updateFrequency = float(self.pluginPrefs.get('updateFrequency', "24")) * 60.0 * 60.0
-        self.logger.debug(u"updateFrequency = " + str(self.updateFrequency))
-        self.next_update_check = time.time()
-
         indigo.devices.subscribeToChanges()
 
 
@@ -56,11 +49,6 @@ class Plugin(indigo.PluginBase):
 
         try:
             while True:
-
-                if self.updateFrequency > 0:
-                    if time.time() > self.next_update_check:
-                        self.updater.checkForUpdate()
-                        self.next_update_check = time.time() + self.updateFrequency
 
                 self.sleep(60.0)
 
@@ -99,14 +87,7 @@ class Plugin(indigo.PluginBase):
     # Menu Methods
     ########################################
 
-    def checkForUpdates(self):
-        self.updater.checkForUpdate()
 
-    def updatePlugin(self):
-        self.updater.update()
-
-    def forceUpdate(self):
-        self.updater.update(currentVersion='0.0.0')
 
     ########################################
     # ConfigUI methods
@@ -115,10 +96,6 @@ class Plugin(indigo.PluginBase):
     def validatePrefsConfigUi(self, valuesDict):
         self.logger.debug(u"validatePrefsConfigUi called")
         errorDict = indigo.Dict()
-
-        updateFrequency = int(valuesDict['updateFrequency'])
-        if (updateFrequency < 0) or (updateFrequency > 24):
-            errorDict['updateFrequency'] = u"Update frequency is invalid - enter a valid number (between 0 and 24)"
 
         if len(errorDict) > 0:
             return (False, valuesDict, errorDict)
@@ -134,10 +111,6 @@ class Plugin(indigo.PluginBase):
                 self.logLevel = logging.INFO
             self.indigo_log_handler.setLevel(self.logLevel)
             self.logger.debug(u"logLevel = " + str(self.logLevel))
-
-            self.updateFrequency = float(self.pluginPrefs.get('updateFrequency', "24")) * 60.0 * 60.0
-            self.logger.debug(u"updateFrequency = " + str(self.updateFrequency))
-            self.next_update_check = time.time()
 
     ################################################################################
     #
