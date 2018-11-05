@@ -283,13 +283,13 @@ class Plugin(indigo.PluginBase):
             if action.deviceAction == indigo.kDeviceAction.TurnOn:
 
                 self.logger.debug(u"actionControlDevice: \"%s\" Turn On" % dev.name)
-                props = { dev.pluginProps["masqValueField"] : dev.pluginProps["highLimit"] }
+                props = { dev.pluginProps["masqValueField"] : dev.pluginProps["highLimitState"] }
                 basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
 
             elif action.deviceAction == indigo.kDeviceAction.TurnOff:
 
                 self.logger.debug(u"actionControlDevice: \"%s\" Turn Off" % dev.name)
-                props = { dev.pluginProps["masqValueField"]: dev.pluginProps["lowLimit"] }
+                props = { dev.pluginProps["masqValueField"]: dev.pluginProps["lowLimitState"] }
                 basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
 
             elif action.deviceAction == indigo.kDeviceAction.SetBrightness:
