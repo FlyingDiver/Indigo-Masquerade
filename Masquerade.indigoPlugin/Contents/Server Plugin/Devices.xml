@@ -75,6 +75,7 @@
                     <Option value="Humidity">Humidity</Option>
                     <Option value="Luminance">Luminance (lux)</Option>
                     <Option value="Luminance%">Luminance (%)</Option>
+                    <Option value="ppm">Concentration (ppm)</Option>
                 </List>
 			</Field>
        </ConfigUI>

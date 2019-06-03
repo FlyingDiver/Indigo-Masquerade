@@ -229,8 +229,8 @@ class Plugin(indigo.PluginBase):
                 self.logger.debug(u"updateDevice masqValueSensor: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, baseValue))
                 
                 if masqDevice.pluginProps["masqSensorSubtype"] == "Generic":
-                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue)
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.None)
+                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue)
 
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "Temperature-F":
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.TemperatureSensor)
@@ -251,6 +251,10 @@ class Plugin(indigo.PluginBase):
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "Luminence%":
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.LightSensor)
                     masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'%')
+
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "ppm":
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.None)
+                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'ppm')
 
                 else:
                     self.logger.debug(u"updateDevice masqSensor, unknown subtype: %s" % (masqDevice.pluginProps["masqSensorSubtype"]))
