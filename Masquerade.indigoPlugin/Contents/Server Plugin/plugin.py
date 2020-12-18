@@ -35,25 +35,12 @@ class Plugin(indigo.PluginBase):
 
     def startup(self):
         indigo.server.log(u"Starting Masquerade")
-
         self.masqueradeList = {}
-
         indigo.devices.subscribeToChanges()
-
 
     def shutdown(self):
         indigo.server.log(u"Shutting down Masquerade")
 
-
-    def runConcurrentThread(self):
-
-        try:
-            while True:
-
-                self.sleep(60.0)
-
-        except self.stopThread:
-            pass
 
     def deviceStartComm(self, device):
 
@@ -252,6 +239,10 @@ class Plugin(indigo.PluginBase):
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.LightSensor)
                     masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'%')
 
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "Energy":
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.EnergyMeterOn)
+                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u' watts')
+
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "ppm":
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.None)
                     masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'ppm')
@@ -274,6 +265,11 @@ class Plugin(indigo.PluginBase):
                 baseValue = newDevice.brightness    # convert this to a speedIndex?
                 self.logger.debug(u"updateDevice masqSpeedControl: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, baseValue))
                 masqDevice.updateStateOnServer(key='speedLevel', value = baseValue)
+
+        elif masqDevice.deviceTypeId == "masqSprinkler":
+            if oldDevice == None or oldDevice.onState != newDevice.onState:
+                self.logger.debug(u"updateDevice masqSprinkler: {} ({}) --> {} ({})".format(newDevice.name, newDevice.onState, masqDevice.name, newDevice.onState))
+                masqDevice.updateStateOnServer(key='activeZone', value = (1 if newDevice.onState else 0))
 
 
 
@@ -314,6 +310,16 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(u"actionControlSpeedControl: \"%s\" Set Speed to %d" % (dev.name, action.actionValue))
         scaleFactor = int(dev.pluginProps["scaleFactor"])
         indigo.dimmer.setBrightness(int(dev.pluginProps["baseDevice"]), value=(action.actionValue * scaleFactor))
+
+
+    def actionControlSprinkler(self, action, dev):
+        if action.sprinklerAction == indigo.kSprinklerAction.ZoneOn:
+            self.logger.debug(u"actionControlSprinkler: \"{}\" On".format(dev.name))
+            indigo.device.turnOn(int(dev.pluginProps["baseDevice"]))
+        elif action.sprinklerAction == indigo.kSprinklerAction.AllZonesOff:
+            self.logger.debug(u"actionControlSprinkler: \"{}\" AllZonesOff".format(dev.name))
+            indigo.device.turnOff(int(dev.pluginProps["baseDevice"]))
+        
 
 
     ########################################################################

@@ -75,6 +75,7 @@
                     <Option value="Humidity">Humidity</Option>
                     <Option value="Luminance">Luminance (lux)</Option>
                     <Option value="Luminance%">Luminance (%)</Option>
+                    <Option value="Energy">Energy (watts)</Option>
                     <Option value="ppm">Concentration (ppm)</Option>
                 </List>
 			</Field>
@@ -181,6 +182,20 @@
             <Field id="scaleFactor" type="textfield" defaultValue="25">
                 <Label>Scale Factor:</Label>
             </Field>
+        </ConfigUI>
+    </Device>
+    
+    <Device type="sprinkler" id="masqSprinkler">
+		<Name>Sprinkler Device</Name>
+        <ConfigUI>
+            <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
+			<Field id="NumZones"  type="textfield" defaultValue="1" hidden="true" />
+			<Field id="ZoneNames" type="textfield" defaultValue="Relay" hidden="true" />
+
+			<Field type="menu" id="baseDevice">
+				<Label>Device to Masquerade:</Label>
+				<List class="indigo.devices" filter="indigo.relay" />
+			</Field>
         </ConfigUI>
     </Device>
 </Devices>
