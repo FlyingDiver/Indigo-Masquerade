@@ -6,16 +6,25 @@
             <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
 			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
-			<Field type="textfield" id="deviceClass" defaultValue="Plugin" hidden="true" />
 			
-            <Field type="menu" id="devicePlugin">
+			<Field type="menu" id="deviceClass" defaultValue="plugin">
+				<Label>Device Class:</Label>
+                <List>
+                    <Option value="plugin">Plugin</Option>
+                    <Option value="indigo.insteon">Insteon</Option>
+                    <Option value="indigo.zwave">ZWave</Option>
+                    <Option value="indigo.x10">X10</Option>
+                </List>
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+            <Field type="menu" id="devicePlugin" visibleBindingId="deviceClass" visibleBindingValue="plugin">
                 <Label>Select Plugin:</Label>
                 <List method="getPluginList" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>
 			<Field type="menu" id="baseDevice">
 				<Label>Device to Masquerade:</Label>
-				<List method="getPluginDevices" dynamicReload="true" class="self" filter="" />
+				<List method="getDevices" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
 			</Field>
 			<Field type="menu" id="masqState">
@@ -49,16 +58,25 @@
             <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="SupportsSensorValue" type="checkbox" defaultValue="true" hidden="true" />
 			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
-			<Field type="textfield" id="deviceClass" defaultValue="Plugin" hidden="true" />
 			
-            <Field type="menu" id="devicePlugin">
+			<Field type="menu" id="deviceClass" defaultValue="plugin">
+				<Label>Device Class:</Label>
+                <List>
+                    <Option value="plugin">Plugin</Option>
+                    <Option value="indigo.insteon">Insteon</Option>
+                    <Option value="indigo.zwave">ZWave</Option>
+                    <Option value="indigo.x10">X10</Option>
+                </List>
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+            <Field type="menu" id="devicePlugin" visibleBindingId="deviceClass" visibleBindingValue="plugin">
                 <Label>Select Plugin:</Label>
                 <List method="getPluginList" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>
 			<Field type="menu" id="baseDevice">
 				<Label>Device to Masquerade:</Label>
-				<List method="getPluginDevices" dynamicReload="true" class="self" filter="" />
+				<List method="getDevices" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
 			</Field>
 			<Field type="menu" id="masqState">
@@ -88,16 +106,25 @@
             <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
 			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
-			<Field type="textfield" id="deviceClass" defaultValue="Plugin" hidden="true" />
 
-            <Field type="menu" id="devicePlugin">
+			<Field type="menu" id="deviceClass" defaultValue="plugin">
+				<Label>Device Class:</Label>
+                <List>
+                    <Option value="plugin">Plugin</Option>
+                    <Option value="indigo.insteon">Insteon</Option>
+                    <Option value="indigo.zwave">ZWave</Option>
+                    <Option value="indigo.x10">X10</Option>
+                </List>
+                <CallbackMethod>menuChanged</CallbackMethod>
+			</Field>
+            <Field type="menu" id="devicePlugin" visibleBindingId="deviceClass" visibleBindingValue="plugin">
                 <Label>Select Plugin:</Label>
                 <List method="getPluginList" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>
 			<Field type="menu" id="baseDevice">
 				<Label>Device to Masquerade:</Label>
-				<List method="getPluginDevices" dynamicReload="true" class="self" filter="" />
+				<List method="getDevices" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
 			</Field>
 			<Field type="menu" id="masqState">

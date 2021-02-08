@@ -357,19 +357,24 @@ class Plugin(indigo.PluginBase):
 
         return retList
 
-    def getPluginDevices(self, filter="", valuesDict=None, typeId="", targetId=0):
+    def getDevices(self, filter="", valuesDict=None, typeId="", targetId=0):
 
         retList = []
-        devicePlugin = valuesDict.get("devicePlugin", None)
-        for dev in indigo.devices.iter():
-            if dev.protocol == indigo.kProtocol.Plugin and dev.pluginId == devicePlugin:
-                for pluginId, pluginDict in dev.globalProps.iteritems():
-                    pass
+
+        deviceClass = valuesDict.get("deviceClass", "plugin")
+        if deviceClass != "plugin":
+            for dev in indigo.devices.iter(deviceClass):
                 retList.append((dev.id, dev.name))
+        else:
+            devicePlugin = valuesDict.get("devicePlugin", None)
+            for dev in indigo.devices.iter():
+                if dev.protocol == indigo.kProtocol.Plugin and dev.pluginId == devicePlugin:
+                    for pluginId, pluginDict in dev.globalProps.iteritems():
+                        pass
+                    retList.append((dev.id, dev.name))
 
         retList.sort(key=lambda tup: tup[1])
         return retList
-
 
     def getStateList(self, filter="", valuesDict=None, typeId="", targetId=0):
 
@@ -386,7 +391,6 @@ class Plugin(indigo.PluginBase):
         return retList
 
     def getActionList(self, filter="", valuesDict=None, typeId="", targetId=0):
-#        self.logger.debug("getActionList, valuesDict =\n" + str(valuesDict))
 
         retList = []
         indigoInstallPath = indigo.server.getInstallFolderPath()
@@ -399,7 +403,6 @@ class Plugin(indigo.PluginBase):
                 except:
                     self.logger.warning(u"getActionList: Unable to parse plist, skipping: %s" % (path))
                 else:
-#                    self.logger.debug(u"getActionList: reading plist: %s" % (path))
                     bundleId = pl["CFBundleIdentifier"]
                     if bundleId == valuesDict.get("devicePlugin", None):
                         self.logger.debug("getActionList, checking  bundleId = %s" % (bundleId))
@@ -418,7 +421,6 @@ class Plugin(indigo.PluginBase):
         return retList
 
     def getActionFieldList(self, filter="", valuesDict=None, typeId="", targetId=0):
-#        self.logger.debug("getActionFieldList, valuesDict =\n" + str(valuesDict))
 
         retList = []
         indigoInstallPath = indigo.server.getInstallFolderPath()
@@ -431,7 +433,6 @@ class Plugin(indigo.PluginBase):
                 except:
                     self.logger.warning(u"getActionFieldList: Unable to parse plist, skipping: %s" % (path))
                 else:
-#                    self.logger.debug(u"getActionFieldList: reading plist: %s" % (path))
                     bundleId = pl["CFBundleIdentifier"]
                     if bundleId == valuesDict.get("devicePlugin", None):
                         tree = ET.parse(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Server Plugin/Actions.xml")
@@ -459,17 +460,11 @@ class Plugin(indigo.PluginBase):
         self.logger.debug("getDeviceConfigUiValues, typeID = " + typeId)
         valuesDict = indigo.Dict(pluginProps)
         errorsDict = indigo.Dict()
-
-#        self.logger.debug("getDeviceConfigUiValues, valuesDict =\n" + str(valuesDict))
-
         return (valuesDict, errorsDict)
 
     def validateDeviceConfigUi(self, valuesDict, typeId, devId):
         self.logger.debug(u"validateDeviceConfigUi, typeID = " + typeId)
         errorsDict = indigo.Dict()
-
-#        self.logger.debug("validateDeviceConfigUi, valuesDict =\n" + str(valuesDict))
-
         if len(errorsDict) > 0:
             return (False, valuesDict, errorsDict)
         return (True, valuesDict)
