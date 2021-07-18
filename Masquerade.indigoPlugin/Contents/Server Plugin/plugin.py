@@ -283,21 +283,28 @@ class Plugin(indigo.PluginBase):
             if action.deviceAction == indigo.kDeviceAction.TurnOn:
 
                 self.logger.debug(u"actionControlDevice: \"%s\" Turn On" % dev.name)
-                props = { dev.pluginProps["masqValueField"] : dev.pluginProps["highLimitState"] }
-                basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+                if dev.pluginProps["masqValueField"]:
+                    props = { dev.pluginProps["masqValueField"] : dev.pluginProps["highLimitState"] }
+                    basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+                else:
+                    basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]))
 
             elif action.deviceAction == indigo.kDeviceAction.TurnOff:
 
                 self.logger.debug(u"actionControlDevice: \"%s\" Turn Off" % dev.name)
-                props = { dev.pluginProps["masqValueField"]: dev.pluginProps["lowLimitState"] }
-                basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
-
+                if dev.pluginProps["masqValueField"]:
+                    props = { dev.pluginProps["masqValueField"]: dev.pluginProps["lowLimitState"] }
+                    basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+                else:
+                    basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]))
+        
             elif action.deviceAction == indigo.kDeviceAction.SetBrightness:
 
-                scaledValueString = self.scaleMasqToBase(dev, action.actionValue)
-                self.logger.debug(u"actionControlDevice: \"%s\" Set Brightness to %d (scaled = %s)" % (dev.name, action.actionValue, scaledValueString))
-                props = { dev.pluginProps["masqValueField"] : scaledValueString }
-                basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+                if dev.pluginProps["masqValueField"]:
+                    scaledValueString = self.scaleMasqToBase(dev, action.actionValue)
+                    self.logger.debug(u"actionControlDevice: \"%s\" Set Brightness to %d (scaled = %s)" % (dev.name, action.actionValue, scaledValueString))
+                    props = { dev.pluginProps["masqValueField"] : scaledValueString }
+                    basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
 
             else:
                 self.logger.error(u"actionControlDevice: \"%s\" Unsupported action requested: %s" % (dev.name, str(action)))
@@ -382,9 +389,12 @@ class Plugin(indigo.PluginBase):
         baseDeviceId = valuesDict.get("baseDevice", None)
         if not baseDeviceId:
             return retList
-
-        baseDevice = indigo.devices[int(baseDeviceId)]
-
+        
+        try:
+            baseDevice = indigo.devices[int(baseDeviceId)]
+        except:
+            return retList
+        
         for stateKey, stateValue in baseDevice.states.items():
             retList.append((stateKey, stateKey))
         retList.sort(key=lambda tup: tup[1])
@@ -437,15 +447,16 @@ class Plugin(indigo.PluginBase):
                     if bundleId == valuesDict.get("devicePlugin", None):
                         tree = ET.parse(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Server Plugin/Actions.xml")
                         actions = tree.getroot()
-                        for action in actions:
-                            if action.tag == "Action" and action.attrib["id"] == valuesDict.get("masqAction", None):
-                                configUI = action.find('ConfigUI')
-                                for field in configUI:
-                                    self.logger.debug("ConfigUI List: child tag = %s, attrib = %s" % (field.tag, field.attrib))
+                        if actions:
+                            for action in actions:
+                                if action.tag == "Action" and action.attrib["id"] == valuesDict.get("masqAction", None):
+                                    configUI = action.find('ConfigUI')
+                                    for field in configUI:
+                                        self.logger.debug("ConfigUI List: child tag = %s, attrib = %s" % (field.tag, field.attrib))
 
-                                    if not bool(field.attrib.get("hidden", None)):
-                                        retList.append((field.attrib["id"], field.attrib["id"]))
-
+                                        if not bool(field.attrib.get("hidden", None)):
+                                            retList.append((field.attrib["id"], field.attrib["id"]))
+                        
         retList.sort(key=lambda tup: tup[1])
         return retList
 
