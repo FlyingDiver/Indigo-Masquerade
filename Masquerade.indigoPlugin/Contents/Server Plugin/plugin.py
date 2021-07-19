@@ -175,9 +175,7 @@ class Plugin(indigo.PluginBase):
 
 
     def updateDevice(self, masqDevice, oldDevice, newDevice):
-
         if masqDevice.deviceTypeId == "masqSensor":
-
             masqState = masqDevice.pluginProps["masqState"]
             if oldDevice == None or oldDevice.states[masqState] != newDevice.states[masqState]:
                 matchString = masqDevice.pluginProps["matchString"]
@@ -209,7 +207,6 @@ class Plugin(indigo.PluginBase):
                     self.logger.debug(u"updateDevice masqSensor, unknown subtype: %s" % (masqDevice.pluginProps["masqSensorSubtype"]))
 
         elif masqDevice.deviceTypeId == "masqValueSensor":
-
             masqState = masqDevice.pluginProps["masqState"]
             if oldDevice == None or oldDevice.states[masqState] != newDevice.states[masqState]:
                 baseValue = float(newDevice.states[masqState])
@@ -252,7 +249,6 @@ class Plugin(indigo.PluginBase):
                     
 
         elif masqDevice.deviceTypeId == "masqDimmer":
-
             masqState = masqDevice.pluginProps["masqState"]
             if oldDevice == None or oldDevice.states[masqState] != newDevice.states[masqState]:
                 baseValue = int(newDevice.states[masqState])
@@ -277,40 +273,51 @@ class Plugin(indigo.PluginBase):
 
     def actionControlDevice(self, action, dev):
 
-        basePlugin = indigo.server.getPlugin(dev.pluginProps["devicePlugin"])
-        if basePlugin.isEnabled():
-
+        if dev.pluginProps['masqAction']=="use Standard Indigo Commands":
             if action.deviceAction == indigo.kDeviceAction.TurnOn:
-
                 self.logger.debug(u"actionControlDevice: \"%s\" Turn On" % dev.name)
-                if dev.pluginProps["masqValueField"]:
-                    props = { dev.pluginProps["masqValueField"] : dev.pluginProps["highLimitState"] }
-                    basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
-                else:
-                    basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]))
-
+                indigo.device.turnOn(int(dev.pluginProps["baseDevice"]))
             elif action.deviceAction == indigo.kDeviceAction.TurnOff:
-
                 self.logger.debug(u"actionControlDevice: \"%s\" Turn Off" % dev.name)
-                if dev.pluginProps["masqValueField"]:
-                    props = { dev.pluginProps["masqValueField"]: dev.pluginProps["lowLimitState"] }
-                    basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
-                else:
-                    basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]))
-        
+                indigo.device.turnOff(int(dev.pluginProps["baseDevice"]))
             elif action.deviceAction == indigo.kDeviceAction.SetBrightness:
+                self.logger.debug(u"actionControlDevice: \"%s\" Set Brightness to %d " % (dev.name, action.actionValue))
+                if action.actionValue >0:
+                    indigo.device.turnOn(int(dev.pluginProps["baseDevice"]))
+                elif action.actionValue == 0:
+                    indigo.device.turnOff(int(dev.pluginProps["baseDevice"]))
+            return
+        else:
+            basePlugin = indigo.server.getPlugin(dev.pluginProps["devicePlugin"])
+            if basePlugin.isEnabled():
+                if action.deviceAction == indigo.kDeviceAction.TurnOn:
+                    self.logger.debug(u"actionControlDevice: \"%s\" Turn On" % dev.name)
+                    if dev.pluginProps["masqValueField"]:
+                        props = { dev.pluginProps["masqValueField"] : dev.pluginProps["highLimitState"] }
+                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+                    else:
+                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]) )
 
-                if dev.pluginProps["masqValueField"]:
-                    scaledValueString = self.scaleMasqToBase(dev, action.actionValue)
-                    self.logger.debug(u"actionControlDevice: \"%s\" Set Brightness to %d (scaled = %s)" % (dev.name, action.actionValue, scaledValueString))
-                    props = { dev.pluginProps["masqValueField"] : scaledValueString }
-                    basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+                elif action.deviceAction == indigo.kDeviceAction.TurnOff:
+                    self.logger.debug(u"actionControlDevice: \"%s\" Turn Off" % dev.name)
+                    if dev.pluginProps["masqValueField"]:
+                        props = { dev.pluginProps["masqValueField"]: dev.pluginProps["lowLimitState"] }
+                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+                    else:
+                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]))
+
+                elif action.deviceAction == indigo.kDeviceAction.SetBrightness:
+                    if dev.pluginProps["masqValueField"]:
+                        scaledValueString = self.scaleMasqToBase(dev, action.actionValue)
+                        self.logger.debug(u"actionControlDevice: \"%s\" Set Brightness to %d (scaled = %s)" % (dev.name, action.actionValue, scaledValueString))
+                        props = { dev.pluginProps["masqValueField"] : scaledValueString }
+                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+
+                else:
+                    self.logger.error(u"actionControlDevice: \"%s\" Unsupported action requested: %s" % (dev.name, str(action)))
 
             else:
-                self.logger.error(u"actionControlDevice: \"%s\" Unsupported action requested: %s" % (dev.name, str(action)))
-
-        else:
-            self.logger.warning(u"actionControlDevice: Device %s is disabled." % (dev.name))
+                self.logger.warning(u"actionControlDevice: Device %s is disabled." % (dev.name))
 
 
     def actionControlSpeedControl(self, action, dev):
@@ -387,6 +394,7 @@ class Plugin(indigo.PluginBase):
 
         retList = []
         baseDeviceId = valuesDict.get("baseDevice", None)
+
         if not baseDeviceId:
             return retList
         
@@ -398,11 +406,12 @@ class Plugin(indigo.PluginBase):
         for stateKey, stateValue in baseDevice.states.items():
             retList.append((stateKey, stateKey))
         retList.sort(key=lambda tup: tup[1])
+
         return retList
 
     def getActionList(self, filter="", valuesDict=None, typeId="", targetId=0):
 
-        retList = []
+        retList = ["use Standard Indigo Commands"]
         indigoInstallPath = indigo.server.getInstallFolderPath()
         pluginsList = os.listdir(indigoInstallPath + '/Plugins')
         for plugin in pluginsList:
