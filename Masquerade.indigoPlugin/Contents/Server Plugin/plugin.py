@@ -273,7 +273,7 @@ class Plugin(indigo.PluginBase):
 
     def actionControlDevice(self, action, dev):
 
-        if dev.pluginProps['masqAction'] == "--Indigo--":
+        if dev.pluginProps['masqAction'] == "---":
             if action.deviceAction == indigo.kDeviceAction.TurnOn:
                 self.logger.debug(u"{}: actionControlDevice: Turn On".format(dev.name))
                 indigo.device.turnOn(int(dev.pluginProps["baseDevice"]))
@@ -363,7 +363,6 @@ class Plugin(indigo.PluginBase):
                     except:
                         self.logger.warning(u"getPluginList: Unable to parse plist, skipping: %s" % (path))
                     else:
-#                        self.logger.debug(u"getPluginList: reading plist: %s" % (path))
                         bundleId = pl["CFBundleIdentifier"]
                         if self.pluginId != bundleId:
                             # Don't include self (i.e. this plugin) in the plugin list
@@ -417,7 +416,7 @@ class Plugin(indigo.PluginBase):
 
     def getActionList(self, filter="", valuesDict=None, typeId="", targetId=0):
 
-        retList = [("--Indigo--", "Standard Indigo Command")]
+        retList = []
         
         indigoInstallPath = indigo.server.getInstallFolderPath()
         pluginsList = os.listdir(indigoInstallPath + '/Plugins')
@@ -444,6 +443,7 @@ class Plugin(indigo.PluginBase):
                                     retList.append((action.attrib["id"], name.text))
 
         retList.sort(key=lambda tup: tup[1])
+        retList.insert(0, ("---", "Standard Commands (On, Off, Brightness)"))
         return retList
 
     def getActionFieldList(self, filter="", valuesDict=None, typeId="", targetId=0):
@@ -474,6 +474,8 @@ class Plugin(indigo.PluginBase):
                                             retList.append((field.attrib["id"], field.attrib["id"]))
                         
         retList.sort(key=lambda tup: tup[1])
+        if len(retList) == 0:
+            retList.insert(0, ("---", "None"))
         return retList
 
 
