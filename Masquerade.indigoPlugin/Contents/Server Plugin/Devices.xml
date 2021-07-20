@@ -156,12 +156,12 @@
             
             <Field id="sep1" type="separator"/>
             
-			<Field id="masqAction" type="menu">
+			<Field id="masqAction" type="menu" defaultValue="---">
 				<Label>Action to set masqueraded value:</Label>
                 <List method="getActionList" dynamicReload="true" class="self" filter="" />
                 <CallbackMethod>menuChanged</CallbackMethod>
 			</Field>
-			<Field id="masqValueField" type="menu">
+			<Field id="masqValueField" type="menu" defaultValue="---">
 				<Label>Field to set masqueraded value:</Label>
                 <List method="getActionFieldList" dynamicReload="true" class="self" filter="" />
 			</Field>
