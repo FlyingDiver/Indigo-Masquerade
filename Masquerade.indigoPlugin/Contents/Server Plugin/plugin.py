@@ -1,17 +1,16 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 ####################
-## Python to interface with MyQ garage doors.
-## based on https://github.com/Einstein42/myq-garage
 
 import os
 import plistlib
 import sys
 import time
 import logging
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # noqa
 
-kCurDevVersCount = 0        # current version of plugin devices
+kCurDevVersCount = 0  # current version of plugin devices
+
 
 ################################################################################
 class Plugin(indigo.PluginBase):
@@ -24,250 +23,220 @@ class Plugin(indigo.PluginBase):
 
         pfmt = logging.Formatter('%(asctime)s.%(msecs)03d\t[%(levelname)8s] %(name)20s.%(funcName)-25s%(msg)s', datefmt='%Y-%m-%d %H:%M:%S')
         self.plugin_file_handler.setFormatter(pfmt)
-
-        try:
-            self.logLevel = int(self.pluginPrefs[u"logLevel"])
-        except:
-            self.logLevel = logging.INFO
+        self.logLevel = int(self.pluginPrefs.get("logLevel", logging.INFO))
         self.indigo_log_handler.setLevel(self.logLevel)
-        self.logger.debug(u"logLevel = " + str(self.logLevel))
+        self.logger.debug(f"logLevel = {str(self.logLevel)}")
 
+        self.masqueradeList = {}
 
     def startup(self):
-        indigo.server.log(u"Starting Masquerade")
-        self.masqueradeList = {}
+        self.logger.info("Starting Masquerade")
         indigo.devices.subscribeToChanges()
 
     def shutdown(self):
-        indigo.server.log(u"Shutting down Masquerade")
-
+        self.logger.info("Shutting down Masquerade")
 
     def deviceStartComm(self, device):
 
         instanceVers = int(device.pluginProps.get('devVersCount', 0))
         if instanceVers >= kCurDevVersCount:
-            self.logger.debug(device.name + u": Device Version is up to date")
+            self.logger.debug(f"{device.name}: Device Version is up to date")
         elif instanceVers < kCurDevVersCount:
             newProps = device.pluginProps
 
             newProps["devVersCount"] = kCurDevVersCount
             device.replacePluginPropsOnServer(newProps)
             device.stateListOrDisplayStateIdChanged()
-            self.logger.debug(u"Updated " + device.name + " to version " + str(kCurDevVersCount))
+            self.logger.debug(f"Updated {device.name} to version {kCurDevVersCount}")
         else:
-            self.logger.error(u"Unknown device version: " + str(instanceVers) + " for device " + device.name)
+            self.logger.error(f"Unknown device version: {instanceVers} for device {device.name}")
 
-        self.logger.debug("Adding Device %s (%d) to device list" % (device.name, device.id))
+        self.logger.debug(f"Adding Device {device.name} ({device.id:d}) to device list")
         assert device.id not in self.masqueradeList
         self.masqueradeList[device.id] = device
         baseDevice = indigo.devices[int(device.pluginProps["baseDevice"])]
         self.updateDevice(device, None, baseDevice)
 
-
     def deviceStopComm(self, device):
-        self.logger.debug("Removing Device %s (%d) from device list" % (device.name, device.id))
+        self.logger.debug(f"Removing Device {device.name} ({device.id:d}) from device list")
         assert device.id in self.masqueradeList
         del self.masqueradeList[device.id]
-
-
-    ########################################
-    # Menu Methods
-    ########################################
-
-
 
     ########################################
     # ConfigUI methods
     ########################################
 
-    def validatePrefsConfigUi(self, valuesDict):
-        self.logger.debug(u"validatePrefsConfigUi called")
-        errorDict = indigo.Dict()
-
-        if len(errorDict) > 0:
-            return (False, valuesDict, errorDict)
-
-        return (True, valuesDict)
-
-
     def closedPrefsConfigUi(self, valuesDict, userCancelled):
         if not userCancelled:
-            try:
-                self.logLevel = int(valuesDict[u"logLevel"])
-            except:
-                self.logLevel = logging.INFO
+            self.logLevel = int(self.pluginPrefs.get("logLevel", logging.INFO))
             self.indigo_log_handler.setLevel(self.logLevel)
-            self.logger.debug(u"logLevel = " + str(self.logLevel))
+            self.logger.debug(f"logLevel = {self.logLevel}")
 
     ################################################################################
-    #
     #   Scaling methods
+    ################################################################################
 
-    def scaleBaseToMasq(self, masqDevice, input):
-
+    def scaleBaseToMasq(self, masqDevice, val):
         lowLimit = int(masqDevice.pluginProps["lowLimitState"])
         highLimit = int(masqDevice.pluginProps["highLimitState"])
         reverse = bool(masqDevice.pluginProps["reverseState"])
 
-        if input < lowLimit:
-            self.logger.warning(u"scaleBaseToMasq: Input value for %s is lower than expected: %d" % (masqDevice.name, input))
-            input = lowLimit
-        elif input > highLimit:
-            self.logger.warning(u"scaleBaseToMasq: Input value for %s is higher than expected: %d" % (masqDevice.name, input))
-            input = highLimit
+        if val < lowLimit:
+            self.logger.warning(f"scaleBaseToMasq: Input value for {masqDevice.name} is lower than expected: {val:d}")
+            val = lowLimit
+        elif val > highLimit:
+            self.logger.warning(f"scaleBaseToMasq: Input value for {masqDevice.name} is higher than expected: {val:d}")
+            val = highLimit
 
-        scaled = int((input - lowLimit) * (100.0 / (highLimit - lowLimit)))
+        scaled = int((val - lowLimit) * (100.0 / (highLimit - lowLimit)))
 
         if reverse:
             scaled = 100 - scaled
 
-        self.logger.debug(u"scaleBaseToMasq: lowLimit = %d, highLimit = %d, reverse = %s, input = %d, scaled = %d" % (lowLimit, highLimit, str(reverse), input, scaled))
+        self.logger.debug(
+            f"scaleBaseToMasq: lowLimit = {lowLimit:d}, highLimit = {highLimit:d}, reverse = {str(reverse)}, input = {val:d}, scaled = {scaled:d}")
         return scaled
 
-    def scaleMasqToBase(self, masqDevice, input):
-
+    def scaleMasqToBase(self, masqDevice, val):
         lowLimit = int(masqDevice.pluginProps["lowLimitAction"])
         highLimit = int(masqDevice.pluginProps["highLimitAction"])
         reverse = bool(masqDevice.pluginProps["reverseAction"])
         valFormat = masqDevice.pluginProps["masqValueFormat"]
 
-        scaled = int((input * (highLimit - lowLimit) / 100.0) + lowLimit)
+        scaled = int((val * (highLimit - lowLimit) / 100.0) + lowLimit)
 
         if reverse:
             scaled = highLimit - (scaled - lowLimit)
 
         if valFormat == "Decimal":
             scaledString = str(scaled)
-        elif valFormat == "Hexidecimal":
+        elif valFormat == "Hexadecimal":
             scaledString = '{:02x}'.format(scaled)
         elif valFormat == "Octal":
             scaledString = oct(scaled)
         else:
-            self.logger.error(u"scaleBaseToMasq: Unknown masqValueFormat = %s" % (valFormat))
+            self.logger.error(f"scaleBaseToMasq: Unknown masqValueFormat = {valFormat}")
+            return None
 
-        self.logger.debug(u"scaleMasqToBase: lowLimit = %d, highLimit = %d, reverse = %s, input = %d, format = %s, scaled = %s" % (lowLimit, highLimit, str(reverse), input, valFormat, scaledString))
+        self.logger.debug(
+            f"scaleMasqToBase: lowLimit = {lowLimit:d}, highLimit = {highLimit:d}, reverse = {str(reverse)}, input = {val:d}, format = {valFormat}, scaled = {scaledString}")
         return scaledString
 
-
-    ################################################################################
-    #
+    ###############################################################################
     # delegate methods for indigo.devices.subscribeToChanges()
-    #
-    ################################################################################
+    ###############################################################################
 
     def deviceDeleted(self, delDevice):
         indigo.PluginBase.deviceDeleted(self, delDevice)
 
-        for myDeviceId, myDevice in sorted(self.masqueradeList.iteritems()):
+        for myDeviceId, myDevice in sorted(self.masqueradeList.items()):
             baseDevice = int(myDevice.pluginProps["baseDevice"])
             if delDevice.id == baseDevice:
-                self.logger.info(u"A device (%s) that was being Masqueraded has been deleted.  Disabling %s" % (delDevice.name, myDevice.name))
-                indigo.device.enable(myDevice, value=False)   #disable it
-
+                self.logger.info(f"A device ({delDevice.name}) that was being Masqueraded has been deleted.  Disabling {myDevice.name}")
+                indigo.device.enable(myDevice, value=False)  # disable it
 
     def deviceUpdated(self, oldDevice, newDevice):
         indigo.PluginBase.deviceUpdated(self, oldDevice, newDevice)
 
-        for masqDeviceId, masqDevice in sorted(self.masqueradeList.iteritems()):
+        for masqDeviceId, masqDevice in sorted(self.masqueradeList.items()):
             baseDevice = int(masqDevice.pluginProps["baseDevice"])
             if oldDevice.id == baseDevice:
                 self.updateDevice(masqDevice, oldDevice, newDevice)
 
+    ###############################################################################
 
     def updateDevice(self, masqDevice, oldDevice, newDevice):
         if masqDevice.deviceTypeId == "masqSensor":
             masqState = masqDevice.pluginProps["masqState"]
-            if oldDevice == None or oldDevice.states[masqState] != newDevice.states[masqState]:
+            if oldDevice is None or oldDevice.states[masqState] != newDevice.states[masqState]:
                 matchString = masqDevice.pluginProps["matchString"]
                 reverse = bool(masqDevice.pluginProps["reverse"])
                 match = (str(newDevice.states[masqState]) == matchString)
                 if reverse:
                     match = not match
-                self.logger.debug(u"updateDevice masqSensor:  %s (%s) --> %s (%s)" % (newDevice.name, newDevice.states[masqState], masqDevice.name, str(match)))
+                self.logger.debug(f"updateDevice masqSensor: {newDevice.name} ({newDevice.states[masqState]}) -> {masqDevice.name} ({match})")
 
                 if masqDevice.pluginProps["masqSensorSubtype"] == "Generic":
-                    masqDevice.updateStateOnServer(key='onOffState', value = match)
-                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.None)
+                    masqDevice.updateStateOnServer(key='onOffState', value=match)
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.NoImage)
 
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "MotionSensor":
-                    masqDevice.updateStateOnServer(key='onOffState', value = match)
+                    masqDevice.updateStateOnServer(key='onOffState', value=match)
                     if match:
                         masqDevice.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
                     else:
                         masqDevice.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
-                    
+
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "Power":
-                    masqDevice.updateStateOnServer(key='onOffState', value = match)
+                    masqDevice.updateStateOnServer(key='onOffState', value=match)
                     if match:
                         masqDevice.updateStateImageOnServer(indigo.kStateImageSel.PowerOn)
                     else:
                         masqDevice.updateStateImageOnServer(indigo.kStateImageSel.PowerOff)
-                    
+
                 else:
-                    self.logger.debug(u"updateDevice masqSensor, unknown subtype: %s" % (masqDevice.pluginProps["masqSensorSubtype"]))
+                    self.logger.debug(f"updateDevice masqSensor, unknown subtype: {masqDevice.pluginProps['masqSensorSubtype']}")
 
         elif masqDevice.deviceTypeId == "masqValueSensor":
             masqState = masqDevice.pluginProps["masqState"]
-            if oldDevice == None or oldDevice.states[masqState] != newDevice.states[masqState]:
+            if oldDevice is None or oldDevice.states[masqState] != newDevice.states[masqState]:
                 baseValue = float(newDevice.states[masqState])
-                self.logger.debug(u"updateDevice masqValueSensor: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, baseValue))
-                
+                self.logger.debug(f"updateDevice masqValueSensor: {newDevice.name} ({baseValue:d}) -> {masqDevice.name} ({baseValue:d})")
+
                 if masqDevice.pluginProps["masqSensorSubtype"] == "Generic":
-                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.None)
-                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue)
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.NoImage)
+                    masqDevice.updateStateOnServer(key='sensorValue', value=baseValue)
 
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "Temperature-F":
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.TemperatureSensor)
-                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=1, uiValue=str(baseValue) + u' °F')
+                    masqDevice.updateStateOnServer(key='sensorValue', value=baseValue, decimalPlaces=1, uiValue=str(baseValue) + u' °F')
 
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "Temperature-C":
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.TemperatureSensor)
-                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=1, uiValue=str(baseValue) + u' °C')
+                    masqDevice.updateStateOnServer(key='sensorValue', value=baseValue, decimalPlaces=1, uiValue=str(baseValue) + u' °C')
 
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "Humidity":
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.HumiditySensor)
-                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'%')
+                    masqDevice.updateStateOnServer(key='sensorValue', value=baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'%')
 
-                elif masqDevice.pluginProps["masqSensorSubtype"] == "Luminence":
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "Luminance":
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.LightSensor)
-                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u' lux')
+                    masqDevice.updateStateOnServer(key='sensorValue', value=baseValue, decimalPlaces=0, uiValue=str(baseValue) + u' lux')
 
-                elif masqDevice.pluginProps["masqSensorSubtype"] == "Luminence%":
+                elif masqDevice.pluginProps["masqSensorSubtype"] == "Luminance%":
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.LightSensor)
-                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'%')
+                    masqDevice.updateStateOnServer(key='sensorValue', value=baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'%')
 
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "Energy":
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.EnergyMeterOn)
-                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u' watts')
+                    masqDevice.updateStateOnServer(key='sensorValue', value=baseValue, decimalPlaces=0, uiValue=str(baseValue) + u' watts')
 
                 elif masqDevice.pluginProps["masqSensorSubtype"] == "ppm":
-                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.None)
-                    masqDevice.updateStateOnServer(key='sensorValue', value = baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'ppm')
+                    masqDevice.updateStateImageOnServer(indigo.kStateImageSel.NoImage)
+                    masqDevice.updateStateOnServer(key='sensorValue', value=baseValue, decimalPlaces=0, uiValue=str(baseValue) + u'ppm')
 
                 else:
-                    self.logger.debug(u"updateDevice masqSensor, unknown subtype: %s" % (masqDevice.pluginProps["masqSensorSubtype"]))
-                    
+                    self.logger.debug(f"updateDevice masqSensor, unknown subtype: {masqDevice.pluginProps['masqSensorSubtype']}")
 
         elif masqDevice.deviceTypeId == "masqDimmer":
             masqState = masqDevice.pluginProps["masqState"]
-            if oldDevice == None or oldDevice.states[masqState] != newDevice.states[masqState]:
+            if oldDevice is None or oldDevice.states[masqState] != newDevice.states[masqState]:
                 baseValue = int(newDevice.states[masqState])
                 scaledValue = self.scaleBaseToMasq(masqDevice, baseValue)
-                self.logger.debug(u"updateDevice masqDimmer: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, scaledValue))
-                masqDevice.updateStateOnServer(key='brightnessLevel', value = scaledValue)
+                self.logger.debug(f"updateDevice masqDimmer: {newDevice.name} ({baseValue:d}) -> {masqDevice.name} ({scaledValue:d})")
+                masqDevice.updateStateOnServer(key='brightnessLevel', value=scaledValue)
 
         elif masqDevice.deviceTypeId == "masqSpeedControl":
-            if oldDevice == None or oldDevice.brightness != newDevice.brightness:
-                baseValue = newDevice.brightness    # convert this to a speedIndex?
-                self.logger.debug(u"updateDevice masqSpeedControl: %s (%d) --> %s (%d)" % (newDevice.name, baseValue, masqDevice.name, baseValue))
-                masqDevice.updateStateOnServer(key='speedLevel', value = baseValue)
+            if oldDevice is None or oldDevice.brightness != newDevice.brightness:
+                baseValue = newDevice.brightness  # convert this to a speedIndex?
+                self.logger.debug(f"updateDevice masqSpeedControl: {newDevice.name} ({baseValue:d}) --> {masqDevice.name} ({baseValue:d})")
+                masqDevice.updateStateOnServer(key='speedLevel', value=baseValue)
 
         elif masqDevice.deviceTypeId == "masqSprinkler":
-            if oldDevice == None or oldDevice.onState != newDevice.onState:
-                self.logger.debug(u"updateDevice masqSprinkler: {} ({}) --> {} ({})".format(newDevice.name, newDevice.onState, masqDevice.name, newDevice.onState))
-                masqDevice.updateStateOnServer(key='activeZone', value = (1 if newDevice.onState else 0))
-
-
+            if oldDevice is None or oldDevice.onState != newDevice.onState:
+                self.logger.debug(
+                    f"updateDevice masqSprinkler: {newDevice.name} ({newDevice.onState}) --> {masqDevice.name} ({newDevice.onState})")
+                masqDevice.updateStateOnServer(key='activeZone', value=(1 if newDevice.onState else 0))
 
     ########################################
 
@@ -275,72 +244,66 @@ class Plugin(indigo.PluginBase):
 
         if dev.pluginProps['masqAction'] == "---":
             if action.deviceAction == indigo.kDeviceAction.TurnOn:
-                self.logger.debug(u"{}: actionControlDevice: Turn On".format(dev.name))
+                self.logger.debug(f"{dev.name}: actionControlDevice: Turn On")
                 indigo.device.turnOn(int(dev.pluginProps["baseDevice"]))
-                
+
             elif action.deviceAction == indigo.kDeviceAction.TurnOff:
-                self.logger.debug(u"{}: actionControlDevice: Turn Off".format(dev.name))
+                self.logger.debug(f"{dev.name}: actionControlDevice: Turn Off")
                 indigo.device.turnOff(int(dev.pluginProps["baseDevice"]))
             elif action.deviceAction == indigo.kDeviceAction.SetBrightness:
-            
-                self.logger.debug(u"{}: actionControlDevice: Set Brightness to {}".format(dev.name, action.actionValue))
+
+                self.logger.debug(f"{dev.name}: actionControlDevice: Set Brightness to {action.actionValue}")
                 if action.actionValue > 0:
                     indigo.device.turnOn(int(dev.pluginProps["baseDevice"]))
                 else:
                     indigo.device.turnOff(int(dev.pluginProps["baseDevice"]))
 
             else:
-                self.logger.error(u"{}: actionControlDevice: Unsupported action requested: {}".format(dev.name, str(action)))
+                self.logger.error(f"{dev.name}: actionControlDevice: Unsupported action requested: {str(action)}")
 
-            
         else:
             basePlugin = indigo.server.getPlugin(dev.pluginProps["devicePlugin"])
             if basePlugin.isEnabled():
                 if action.deviceAction == indigo.kDeviceAction.TurnOn:
-                    self.logger.debug(u"{}: actionControlDevice: Turn On".format(dev.name))
+                    self.logger.debug(f"{dev.name}: actionControlDevice: Turn On")
                     if dev.pluginProps["masqValueField"]:
-                        props = { dev.pluginProps["masqValueField"] : dev.pluginProps["highLimitState"] }
-                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+                        props = {dev.pluginProps["masqValueField"]: dev.pluginProps["highLimitState"]}
+                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]), props=props)
                     else:
-                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]) )
+                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]))
 
                 elif action.deviceAction == indigo.kDeviceAction.TurnOff:
-                    self.logger.debug(u"{}: actionControlDevice: Turn Off".format(dev.name))
+                    self.logger.debug(f"{dev.name}: actionControlDevice: Turn Off")
                     if dev.pluginProps["masqValueField"]:
-                        props = { dev.pluginProps["masqValueField"]: dev.pluginProps["lowLimitState"] }
-                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+                        props = {dev.pluginProps["masqValueField"]: dev.pluginProps["lowLimitState"]}
+                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]), props=props)
                     else:
                         basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]))
 
                 elif action.deviceAction == indigo.kDeviceAction.SetBrightness:
                     if dev.pluginProps["masqValueField"]:
                         scaledValueString = self.scaleMasqToBase(dev, action.actionValue)
-                        self.logger.debug(u"{}: actionControlDevice: Set Brightness to {} ({} scaled)".format(dev.name, action.actionValue, scaledValueString))
-                        props = { dev.pluginProps["masqValueField"] : scaledValueString }
-                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]),  props=props)
+                        self.logger.debug(f"{dev.name}: actionControlDevice: Set Brightness to {action.actionValue} ({scaledValueString} scaled)")
+                        props = {dev.pluginProps["masqValueField"]: scaledValueString}
+                        basePlugin.executeAction(dev.pluginProps["masqAction"], deviceId=int(dev.pluginProps["baseDevice"]), props=props)
 
                 else:
-                    self.logger.error(u"{}: actionControlDevice: Unsupported action requested: {}".format(dev.name, str(action)))
-
+                    self.logger.error(f"{dev.name}: actionControlDevice: Unsupported action requested: {str(action)}")
             else:
-                self.logger.warning(u"actionControlDevice: Plugin for device {} is disabled.".format(dev.name))
-
+                self.logger.warning(f"actionControlDevice: Plugin for device {dev.name} is disabled.")
 
     def actionControlSpeedControl(self, action, dev):
-        self.logger.debug(u"actionControlSpeedControl: \"%s\" Set Speed to %d" % (dev.name, action.actionValue))
+        self.logger.debug(f"actionControlSpeedControl: '{dev.name}' Set Speed to {action.actionValue:d}")
         scaleFactor = int(dev.pluginProps["scaleFactor"])
         indigo.dimmer.setBrightness(int(dev.pluginProps["baseDevice"]), value=(action.actionValue * scaleFactor))
 
-
     def actionControlSprinkler(self, action, dev):
         if action.sprinklerAction == indigo.kSprinklerAction.ZoneOn:
-            self.logger.debug(u"actionControlSprinkler: \"{}\" On".format(dev.name))
+            self.logger.debug(f"actionControlSprinkler: '{dev.name}' On")
             indigo.device.turnOn(int(dev.pluginProps["baseDevice"]))
         elif action.sprinklerAction == indigo.kSprinklerAction.AllZonesOff:
-            self.logger.debug(u"actionControlSprinkler: \"{}\" AllZonesOff".format(dev.name))
+            self.logger.debug(f"actionControlSprinkler: '{dev.name}' AllZonesOff")
             indigo.device.turnOff(int(dev.pluginProps["baseDevice"]))
-        
-
 
     ########################################################################
     # This method is called to generate a list of plugin identifiers / names
@@ -349,19 +312,19 @@ class Plugin(indigo.PluginBase):
 
         retList = []
         indigoInstallPath = indigo.server.getInstallFolderPath()
-        pluginFolders =['Plugins', 'Plugins (Disabled)']
+        pluginFolders = ['Plugins', 'Plugins (Disabled)']
         for pluginFolder in pluginFolders:
             tempList = []
-            pluginsList = os.listdir(indigoInstallPath + '/' + pluginFolder)
+            pluginsList = os.listdir(f"{indigoInstallPath}/{pluginFolder}")
             for plugin in pluginsList:
                 # Check for Indigo Plugins and exclude 'system' plugins
                 if (plugin.lower().endswith('.indigoplugin')) and (not plugin[0:1] == '.'):
                     # retrieve plugin Info.plist file
-                    path = indigoInstallPath + "/" + pluginFolder + "/" + plugin + "/Contents/Info.plist"
+                    path = f"{indigoInstallPath}/{pluginFolder}/{plugin}/Contents/Info.plist"
                     try:
                         pl = plistlib.readPlist(path)
-                    except:
-                        self.logger.warning(u"getPluginList: Unable to parse plist, skipping: %s" % (path))
+                    except (Exception,):
+                        self.logger.warning(f"getPluginList: Unable to parse plist, skipping: {path}")
                     else:
                         bundleId = pl["CFBundleIdentifier"]
                         if self.pluginId != bundleId:
@@ -376,10 +339,9 @@ class Plugin(indigo.PluginBase):
 
         return retList
 
-    def getDevices(self, filter="", valuesDict=None, typeId="", targetId=0):
-
+    @staticmethod
+    def getDevices(filter="", valuesDict=None, typeId="", targetId=0):
         retList = []
-
         deviceClass = valuesDict.get("deviceClass", "plugin")
         if deviceClass != "plugin":
             for dev in indigo.devices.iter(deviceClass):
@@ -395,51 +357,45 @@ class Plugin(indigo.PluginBase):
         retList.sort(key=lambda tup: tup[1])
         return retList
 
-    def getStateList(self, filter="", valuesDict=None, typeId="", targetId=0):
-
+    @staticmethod
+    def getStateList(filter="", valuesDict=None, typeId="", targetId=0):
         retList = []
         baseDeviceId = valuesDict.get("baseDevice", None)
-
         if not baseDeviceId:
             return retList
-        
         try:
             baseDevice = indigo.devices[int(baseDeviceId)]
-        except:
+        except (Exception,):
             return retList
-        
         for stateKey, stateValue in baseDevice.states.items():
             retList.append((stateKey, stateKey))
         retList.sort(key=lambda tup: tup[1])
-
         return retList
 
     def getActionList(self, filter="", valuesDict=None, typeId="", targetId=0):
-
         retList = []
-        
         indigoInstallPath = indigo.server.getInstallFolderPath()
         pluginsList = os.listdir(indigoInstallPath + '/Plugins')
         for plugin in pluginsList:
             if (plugin.lower().endswith('.indigoplugin')) and (not plugin[0:1] == '.'):
-                path = indigoInstallPath + "/Plugins/" + plugin + "/Contents/Info.plist"
+                path = f"{indigoInstallPath}/Plugins/{plugin}/Contents/Info.plist"
                 try:
                     pl = plistlib.readPlist(path)
-                except:
-                    self.logger.warning(u"getActionList: Unable to parse plist, skipping: %s" % (path))
+                except(Exception, ):
+                    self.logger.warning(f"getActionList: Unable to parse plist, skipping: {path}")
                 else:
                     bundleId = pl["CFBundleIdentifier"]
                     if bundleId == valuesDict.get("devicePlugin", None):
-                        self.logger.debug("getActionList, checking  bundleId = %s" % (bundleId))
-                        tree = ET.parse(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Server Plugin/Actions.xml")
+                        self.logger.debug(f"getActionList, checking  bundleId = {bundleId}")
+                        tree = ET.parse(f"{indigoInstallPath}/Plugins/{plugin}/Contents/Server Plugin/Actions.xml")
                         actions = tree.getroot()
                         for action in actions:
                             if action.tag == "Action":
-                                self.logger.debug("getActionList, Action attribs = %s" % (action.attrib))
+                                self.logger.debug(f"getActionList, Action attribs = {action.attrib}")
                                 name = action.find('Name')
                                 callBack = action.find('CallbackMethod')
-                                if name != None and callBack != None:
-                                    self.logger.debug("getActionList, Action id = %s, name = '%s', callBackMethod = %s" % (action.attrib["id"], name.text, callBack.text))
+                                if name is not None and callBack is not None:
+                                    self.logger.debug(f"getActionList, Action id = {action.attrib['id']}, name = '{name.text}', callBackMethod = {callBack.text}")
                                     retList.append((action.attrib["id"], name.text))
 
         retList.sort(key=lambda tup: tup[1])
@@ -453,47 +409,31 @@ class Plugin(indigo.PluginBase):
         pluginsList = os.listdir(indigoInstallPath + '/Plugins')
         for plugin in pluginsList:
             if (plugin.lower().endswith('.indigoplugin')) and (not plugin[0:1] == '.'):
-                path = indigoInstallPath + "/Plugins/" + plugin + "/Contents/Info.plist"
+                path = f"{indigoInstallPath}/Plugins/{plugin}/Contents/Info.plist"
                 try:
                     pl = plistlib.readPlist(path)
-                except:
-                    self.logger.warning(u"getActionFieldList: Unable to parse plist, skipping: %s" % (path))
+                except(Exception, ):
+                    self.logger.warning(f"getActionFieldList: Unable to parse plist, skipping: {path}")
                 else:
                     bundleId = pl["CFBundleIdentifier"]
                     if bundleId == valuesDict.get("devicePlugin", None):
-                        tree = ET.parse(indigoInstallPath + "/Plugins/" + plugin + "/Contents/Server Plugin/Actions.xml")
+                        tree = ET.parse(f"{indigoInstallPath}/Plugins/{plugin}/Contents/Server Plugin/Actions.xml")
                         actions = tree.getroot()
                         if actions:
                             for action in actions:
                                 if action.tag == "Action" and action.attrib["id"] == valuesDict.get("masqAction", None):
                                     configUI = action.find('ConfigUI')
                                     for field in configUI:
-                                        self.logger.debug("ConfigUI List: child tag = %s, attrib = %s" % (field.tag, field.attrib))
-
+                                        self.logger.debug(f"ConfigUI List: child tag = {field.tag}, attrib = {field.attrib}")
                                         if not bool(field.attrib.get("hidden", None)):
                                             retList.append((field.attrib["id"], field.attrib["id"]))
-                        
+
         retList.sort(key=lambda tup: tup[1])
         if len(retList) == 0:
             retList.insert(0, ("---", "None"))
         return retList
 
-
     # doesn't do anything, just needed to force other menus to dynamically refresh
-
-    def menuChanged(self, valuesDict, typeId, devId):
+    @staticmethod
+    def menuChanged(valuesDict, typeId, devId):
         return valuesDict
-
-
-    def getDeviceConfigUiValues(self, pluginProps, typeId, devId):
-        self.logger.debug("getDeviceConfigUiValues, typeID = " + typeId)
-        valuesDict = indigo.Dict(pluginProps)
-        errorsDict = indigo.Dict()
-        return (valuesDict, errorsDict)
-
-    def validateDeviceConfigUi(self, valuesDict, typeId, devId):
-        self.logger.debug(u"validateDeviceConfigUi, typeID = " + typeId)
-        errorsDict = indigo.Dict()
-        if len(errorsDict) > 0:
-            return (False, valuesDict, errorsDict)
-        return (True, valuesDict)
