@@ -51,14 +51,14 @@ class Plugin(indigo.PluginBase):
         else:
             self.logger.error(f"Unknown device version: {instanceVers} for device {device.name}")
 
-        self.logger.debug(f"Adding Device {device.name} ({device.id:d}) to device list")
+        self.logger.debug(f"Adding Device {device.name} ({device.id}) to device list")
         assert device.id not in self.masqueradeList
         self.masqueradeList[device.id] = device
         baseDevice = indigo.devices[int(device.pluginProps["baseDevice"])]
         self.updateDevice(device, None, baseDevice)
 
     def deviceStopComm(self, device):
-        self.logger.debug(f"Removing Device {device.name} ({device.id:d}) from device list")
+        self.logger.debug(f"Removing Device {device.name} ({device.id}) from device list")
         assert device.id in self.masqueradeList
         del self.masqueradeList[device.id]
 
@@ -82,10 +82,10 @@ class Plugin(indigo.PluginBase):
         reverse = bool(masqDevice.pluginProps["reverseState"])
 
         if val < lowLimit:
-            self.logger.warning(f"scaleBaseToMasq: Input value for {masqDevice.name} is lower than expected: {val:d}")
+            self.logger.warning(f"scaleBaseToMasq: Input value for {masqDevice.name} is lower than expected: {val}")
             val = lowLimit
         elif val > highLimit:
-            self.logger.warning(f"scaleBaseToMasq: Input value for {masqDevice.name} is higher than expected: {val:d}")
+            self.logger.warning(f"scaleBaseToMasq: Input value for {masqDevice.name} is higher than expected: {val}")
             val = highLimit
 
         scaled = int((val - lowLimit) * (100.0 / (highLimit - lowLimit)))
@@ -94,7 +94,7 @@ class Plugin(indigo.PluginBase):
             scaled = 100 - scaled
 
         self.logger.debug(
-            f"scaleBaseToMasq: lowLimit = {lowLimit:d}, highLimit = {highLimit:d}, reverse = {str(reverse)}, input = {val:d}, scaled = {scaled:d}")
+            f"scaleBaseToMasq: lowLimit = {lowLimit}, highLimit = {highLimit}, reverse = {str(reverse)}, input = {val}, scaled = {scaled}")
         return scaled
 
     def scaleMasqToBase(self, masqDevice, val):
@@ -119,7 +119,7 @@ class Plugin(indigo.PluginBase):
             return None
 
         self.logger.debug(
-            f"scaleMasqToBase: lowLimit = {lowLimit:d}, highLimit = {highLimit:d}, reverse = {str(reverse)}, input = {val:d}, format = {valFormat}, scaled = {scaledString}")
+            f"scaleMasqToBase: lowLimit = {lowLimit}, highLimit = {highLimit}, reverse = {str(reverse)}, input = {val}, format = {valFormat}, scaled = {scaledString}")
         return scaledString
 
     ###############################################################################
@@ -180,8 +180,12 @@ class Plugin(indigo.PluginBase):
         elif masqDevice.deviceTypeId == "masqValueSensor":
             masqState = masqDevice.pluginProps["masqState"]
             if oldDevice is None or oldDevice.states[masqState] != newDevice.states[masqState]:
-                baseValue = float(newDevice.states[masqState])
-                self.logger.debug(f"updateDevice masqValueSensor: {newDevice.name} ({baseValue:d}) -> {masqDevice.name} ({baseValue:d})")
+                try:
+                    baseValue = float(newDevice.states[masqState])
+                except ValueError:
+                    self.logger.debug(f"{masqDevice.name}: Unable to convert state {masqState} = {newDevice.states[masqState]} to float")
+                    baseValue = 0
+                self.logger.debug(f"updateDevice masqValueSensor: {newDevice.name} ({baseValue}) -> {masqDevice.name} ({baseValue})")
 
                 if masqDevice.pluginProps["masqSensorSubtype"] == "Generic":
                     masqDevice.updateStateImageOnServer(indigo.kStateImageSel.NoImage)
@@ -223,13 +227,13 @@ class Plugin(indigo.PluginBase):
             if oldDevice is None or oldDevice.states[masqState] != newDevice.states[masqState]:
                 baseValue = int(newDevice.states[masqState])
                 scaledValue = self.scaleBaseToMasq(masqDevice, baseValue)
-                self.logger.debug(f"updateDevice masqDimmer: {newDevice.name} ({baseValue:d}) -> {masqDevice.name} ({scaledValue:d})")
+                self.logger.debug(f"updateDevice masqDimmer: {newDevice.name} ({baseValue}) -> {masqDevice.name} ({scaledValue})")
                 masqDevice.updateStateOnServer(key='brightnessLevel', value=scaledValue)
 
         elif masqDevice.deviceTypeId == "masqSpeedControl":
             if oldDevice is None or oldDevice.brightness != newDevice.brightness:
                 baseValue = newDevice.brightness  # convert this to a speedIndex?
-                self.logger.debug(f"updateDevice masqSpeedControl: {newDevice.name} ({baseValue:d}) --> {masqDevice.name} ({baseValue:d})")
+                self.logger.debug(f"updateDevice masqSpeedControl: {newDevice.name} ({baseValue}) --> {masqDevice.name} ({baseValue})")
                 masqDevice.updateStateOnServer(key='speedLevel', value=baseValue)
 
         elif masqDevice.deviceTypeId == "masqSprinkler":
@@ -293,7 +297,7 @@ class Plugin(indigo.PluginBase):
                 self.logger.warning(f"actionControlDevice: Plugin for device {dev.name} is disabled.")
 
     def actionControlSpeedControl(self, action, dev):
-        self.logger.debug(f"actionControlSpeedControl: '{dev.name}' Set Speed to {action.actionValue:d}")
+        self.logger.debug(f"actionControlSpeedControl: '{dev.name}' Set Speed to {action.actionValue}")
         scaleFactor = int(dev.pluginProps["scaleFactor"])
         indigo.dimmer.setBrightness(int(dev.pluginProps["baseDevice"]), value=(action.actionValue * scaleFactor))
 
@@ -321,19 +325,21 @@ class Plugin(indigo.PluginBase):
                 if (plugin.lower().endswith('.indigoplugin')) and (not plugin[0:1] == '.'):
                     # retrieve plugin Info.plist file
                     path = f"{indigoInstallPath}/{pluginFolder}/{plugin}/Contents/Info.plist"
-                    try:
-                        pl = plistlib.readPlist(path)
-                    except (Exception,):
-                        self.logger.warning(f"getPluginList: Unable to parse plist, skipping: {path}")
-                    else:
-                        bundleId = pl["CFBundleIdentifier"]
-                        if self.pluginId != bundleId:
-                            # Don't include self (i.e. this plugin) in the plugin list
-                            displayName = pl["CFBundleDisplayName"]
-                            # if disabled plugins folder, append 'Disabled' to name
-                            if pluginFolder == 'Plugins (Disabled)':
-                                displayName += ' [Disabled]'
-                            tempList.append((bundleId, displayName))
+                    with open(path, "rb") as fp:
+                        try:
+                            pl = plistlib.load(fp)
+                        except Exception as err:
+                            self.logger.warning(f"getPluginList: Unable to parse plist, skipping: {path}, err = {err}")
+                        else:
+                            self.logger.threaddebug(f"getPluginList: pl = {pl}")
+                            bundleId = pl["CFBundleIdentifier"]
+                            if self.pluginId != bundleId:
+                                # Don't include self (i.e. this plugin) in the plugin list
+                                displayName = pl["CFBundleDisplayName"]
+                                # if disabled plugins folder, append 'Disabled' to name
+                                if pluginFolder == 'Plugins (Disabled)':
+                                    displayName += ' [Disabled]'
+                                tempList.append((bundleId, displayName))
             tempList.sort(key=lambda tup: tup[1])
             retList = retList + tempList
 
