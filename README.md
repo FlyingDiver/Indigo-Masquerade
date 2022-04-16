@@ -2,11 +2,15 @@
 
 Plugin for the Indigo Home Automation system.
 
-
+| Requirement            |                     |   |
+|------------------------|---------------------|---|
+| Minimum Indigo Version | 2022.1              |   |
+| Python Library (API)   | None                |   |
+| Requires Local Network | No                  |   |
+| Requires Internet      | No                  |   |
+| Hardware Interface     | None                |   |
 
 **PluginID**: com.flyingdiver.indigoplugin.masquerade
 
-### Indigo 7 Only
 
-This plugin only works under Indigo 7 or greater.
 
