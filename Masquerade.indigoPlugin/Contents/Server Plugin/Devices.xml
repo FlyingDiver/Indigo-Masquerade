@@ -3,7 +3,6 @@
     <Device type="sensor" id="masqSensor">
         <Name>On/Off Sensor Device</Name>
         <ConfigUI>
-            <SupportURL>https://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
 			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
 			
@@ -55,7 +54,6 @@
     <Device type="sensor" id="masqValueSensor">
         <Name>Value Sensor Device</Name>
         <ConfigUI>
-            <SupportURL>https://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="SupportsSensorValue" type="checkbox" defaultValue="true" hidden="true" />
 			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
 			
@@ -103,7 +101,6 @@
     <Device type="dimmer" id="masqDimmer">
         <Name>Dimmer Device</Name>
         <ConfigUI>
-            <SupportURL>https://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
 			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
 
@@ -198,7 +195,6 @@
     <Device type="speedcontrol" id="masqSpeedControl">
         <Name>Speed Control Device</Name>
         <ConfigUI>
-            <SupportURL>https://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true" />
 			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true" />
 
@@ -215,7 +211,6 @@
     <Device type="sprinkler" id="masqSprinkler">
 		<Name>Sprinkler Device</Name>
         <ConfigUI>
-            <SupportURL>https://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
 			<Field id="NumZones"  type="textfield" defaultValue="1" hidden="true" />
 			<Field id="ZoneNames" type="textfield" defaultValue="Relay" hidden="true" />
 
