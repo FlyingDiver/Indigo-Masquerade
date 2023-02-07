@@ -115,7 +115,7 @@ class Plugin(indigo.PluginBase):
         elif valFormat == "Octal":
             scaledString = oct(scaled)
         else:
-            self.logger.error(f"scaleBaseToMasq: Unknown masqValueFormat = {valFormat}")
+            self.logger.error(f"scaleMasqToBase: Unknown masqValueFormat = {valFormat}")
             return None
 
         self.logger.debug(
