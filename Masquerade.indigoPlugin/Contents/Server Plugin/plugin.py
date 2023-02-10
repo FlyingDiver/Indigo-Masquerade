@@ -232,9 +232,12 @@ class Plugin(indigo.PluginBase):
 
         elif masqDevice.deviceTypeId == "masqSpeedControl":
             if oldDevice is None or oldDevice.brightness != newDevice.brightness:
-                baseValue = newDevice.brightness  # convert this to a speedIndex?
-                self.logger.debug(f"updateDevice masqSpeedControl: {newDevice.name} ({baseValue}) --> {masqDevice.name} ({baseValue})")
+                baseValue = newDevice.brightness
+                scaleFactor = int(masqDevice.pluginProps["scaleFactor"])
+                baseIndex = int(baseValue / scaleFactor)
+                self.logger.debug(f"updateDevice masqSpeedControl: {newDevice.name} ({baseValue}) --> {masqDevice.name} ({baseValue}, index {baseIndex})")
                 masqDevice.updateStateOnServer(key='speedLevel', value=baseValue)
+                masqDevice.updateStateOnServer(key='speedIndex', value=baseIndex)
 
         elif masqDevice.deviceTypeId == "masqSprinkler":
             if oldDevice is None or oldDevice.onState != newDevice.onState:
@@ -297,9 +300,30 @@ class Plugin(indigo.PluginBase):
                 self.logger.warning(f"actionControlDevice: Plugin for device {dev.name} is disabled.")
 
     def actionControlSpeedControl(self, action, dev):
-        self.logger.debug(f"actionControlSpeedControl: '{dev.name}' Set Speed to {action.actionValue}")
+        self.logger.debug(f"actionControlSpeedControl: '{dev.name}' action is {action}")
+        baseDevNum = int(dev.pluginProps["baseDevice"])
         scaleFactor = int(dev.pluginProps["scaleFactor"])
-        indigo.dimmer.setBrightness(int(dev.pluginProps["baseDevice"]), value=(action.actionValue * scaleFactor))
+        if action.speedControlAction == indigo.kSpeedControlAction.TurnOn:
+            indigo.device.turnOn(baseDevNum)
+        elif action.speedControlAction == indigo.kSpeedControlAction.TurnOff:
+            indigo.device.turnOff(baseDevNum)
+        elif action.speedControlAction == indigo.kSpeedControlAction.Toggle:
+            indigo.device.toggle(baseDevNum)
+        elif action.speedControlAction == indigo.kSpeedControlAction.SetSpeedIndex:
+            self.logger.debug(f"actionControlSpeedControl: '{dev.name}' Set Speed to {action.actionValue}")
+            indigo.dimmer.setBrightness(baseDevNum, value=(action.actionValue * scaleFactor)) 
+        elif action.speedControlAction == indigo.kSpeedControlAction.SetSpeedLevel:
+            indigo.dimmer.setBrightness(baseDevNum, value=action.actionValue) 
+        elif action.speedControlAction == indigo.kSpeedControlAction.IncreaseSpeedIndex:
+            speedIndex = min(dev.speedIndex + 1, dev.speedIndexCount - 1)
+            indigo.dimmer.setBrightness(baseDevNum, value=(speedIndex * scaleFactor)) 
+        elif action.speedControlAction == indigo.kSpeedControlAction.DecreaseSpeedIndex:
+            speedIndex = max(dev.speedIndex - 1, 0)
+            indigo.dimmer.setBrightness(baseDevNum, value=(speedIndex * scaleFactor))
+        elif action.speedControlAction == indigo.kSpeedControlAction.RequestStatus:
+            indigo.device.statusRequest(baseDevNum)
+        else:
+            self.logger.warn(f"Unsupported speed control action {action}")
 
     def actionControlSprinkler(self, action, dev):
         if action.sprinklerAction == indigo.kSprinklerAction.ZoneOn:
